@@ -104,7 +104,7 @@ function loadSnapshot(){
 }
 function populateFilters(data){
   var users=[],insts=[],prods=[],stocks=[];
-  data.forEach(function(r){if(r.사용자&&users.indexOf(r.사용자)===-1)users.push(r.사용자);if(r.금융기관&&insts.indexOf(r.금융기관)===-1)insts.push(r.금융기관);if(r.상품&&prods.indexOf(r.상품)===-1)prods.push(r.상품);if(r.종목&&stocks.indexOf(r.종목)===-1)stocks.push(r.종목);});
+  data.forEach(function(r){if(r.사용자&&users.indexOf(r.사용자ID)===-1)users.push(r.사용자ID);if(r.금융기관&&insts.indexOf(r.금융기관ID)===-1)insts.push(r.금융기관ID);if(r.상품&&prods.indexOf(r.상품ID)===-1)prods.push(r.상품ID);if(r.종목&&stocks.indexOf(r.종목코드)===-1)stocks.push(r.종목코드);});
   fillSel('fUser',users);fillSel('fInstitution',insts);fillSel('fProduct',prods);fillSel('fStock',stocks);
 }
 function fillSel(id,arr){var sel=document.getElementById(id);sel.innerHTML='<option value="">전체</option>';arr.sort().forEach(function(v){var o=document.createElement('option');o.value=v;o.textContent=v;sel.appendChild(o);});}
@@ -112,7 +112,7 @@ function applyFilter(){
   var from=document.getElementById('dateFrom').value,to=document.getElementById('dateTo').value;
   var user=document.getElementById('fUser').value,inst=document.getElementById('fInstitution').value;
   var prod=document.getElementById('fProduct').value,stock=document.getElementById('fStock').value;
-  var filtered=allData.filter(function(r){var d=fmtDate(r.날짜);if(from&&d<from)return false;if(to&&d>to)return false;if(user&&r.사용자!==user)return false;if(inst&&r.금융기관!==inst)return false;if(prod&&r.상품!==prod)return false;if(stock&&r.종목!==stock)return false;return true;});
+  var filtered=allData.filter(function(r){var d=fmtDate(r.날짜);if(from&&d<from)return false;if(to&&d>to)return false;if(user&&r.사용자ID!==user)return false;if(inst&&r.금융기관ID!==inst)return false;if(prod&&r.상품ID!==prod)return false;if(stock&&r.종목코드!==stock)return false;return true;});
   renderChart(filtered);
 }
 function resetFilters(){var now=new Date(),y1=new Date(now);y1.setFullYear(now.getFullYear()-1);document.getElementById('dateTo').value=now.toISOString().slice(0,10);document.getElementById('dateFrom').value=y1.toISOString().slice(0,10);['fUser','fInstitution','fProduct','fStock'].forEach(function(id){document.getElementById(id).value='';});renderChart(allData);}
