@@ -13,26 +13,28 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; b
 .section { padding: 14px 16px 4px; }
 .card { background: white; border-radius: 14px; padding: 16px; box-shadow: 0 1px 4px rgba(0,0,0,.08); margin-bottom: 12px; }
 .card h2 { font-size: 14px; font-weight: 700; color: #1a1f2e; margin-bottom: 12px; }
-.master-item { display: flex; align-items: center; padding: 11px 0; border-bottom: 1px solid #f5f5f5; gap: 8px; }
+.master-item { display: flex; align-items: center; padding: 10px 0; border-bottom: 1px solid #f5f5f5; gap: 8px; }
 .master-item:last-child { border-bottom: none; }
-.master-badge { font-size: 11px; font-weight: 700; color: #6c63ff; background: #f0efff; padding: 3px 8px; border-radius: 6px; white-space: nowrap; min-width: 64px; text-align: center; }
+.master-badge { font-size: 11px; font-weight: 700; color: #6c63ff; background: #f0efff; padding: 3px 8px; border-radius: 6px; white-space: nowrap; min-width: 52px; text-align: center; }
 .master-name { flex: 1; font-size: 14px; font-weight: 600; }
+.master-sub { font-size: 11px; color: #aaa; margin-top: 2px; }
 .btn-edit { padding: 5px 10px; background: #f0f2f5; border: none; border-radius: 6px; font-size: 12px; cursor: pointer; color: #555; }
 .btn-delete { padding: 5px 10px; background: #fff0f0; border: none; border-radius: 6px; font-size: 12px; cursor: pointer; color: #e74c3c; }
-.add-row { display: flex; gap: 8px; margin-top: 12px; padding-top: 12px; border-top: 1px solid #f0f2f5; }
-.add-row input { flex: 1; padding: 9px 12px; border: 1.5px solid #ddd; border-radius: 8px; font-size: 13px; background: white; color: #333; }
-.add-row input:focus { outline: none; border-color: #1a1f2e; }
+.add-row { display: flex; gap: 8px; margin-top: 12px; padding-top: 12px; border-top: 1px solid #f0f2f5; flex-wrap: wrap; }
+.add-row input, .add-row select { flex: 1; min-width: 80px; padding: 9px 10px; border: 1.5px solid #ddd; border-radius: 8px; font-size: 13px; background: white; color: #333; }
+.add-row input:focus, .add-row select:focus { outline: none; border-color: #1a1f2e; }
 .btn-add { padding: 9px 14px; background: #1a1f2e; color: white; border: none; border-radius: 8px; font-size: 13px; font-weight: 700; cursor: pointer; white-space: nowrap; }
 .empty-msg { text-align: center; padding: 16px; color: #aaa; font-size: 13px; }
-.loading { text-align: center; padding: 60px; color: #aaa; font-size: 14px; }
+.loading-msg { text-align: center; padding: 60px 20px; color: #aaa; font-size: 14px; }
+.retry-btn { margin-top: 12px; padding: 8px 16px; background: #1a1f2e; color: white; border: none; border-radius: 8px; font-size: 13px; cursor: pointer; }
 .overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 200; display: none; align-items: center; justify-content: center; padding: 20px; }
 .overlay.active { display: flex; }
-.modal { background: white; border-radius: 16px; padding: 20px; width: 100%; max-width: 360px; }
+.modal { background: white; border-radius: 16px; padding: 20px; width: 100%; max-width: 380px; }
 .modal h3 { font-size: 16px; font-weight: 700; color: #1a1f2e; margin-bottom: 16px; }
 .modal .fg { margin-bottom: 12px; }
 .modal .fg label { display: block; font-size: 11px; color: #888; font-weight: 600; margin-bottom: 5px; }
-.modal .fg input { width: 100%; padding: 10px 12px; border: 1.5px solid #ddd; border-radius: 8px; font-size: 14px; }
-.modal .fg input:focus { outline: none; border-color: #1a1f2e; }
+.modal .fg input, .modal .fg select { width: 100%; padding: 10px 12px; border: 1.5px solid #ddd; border-radius: 8px; font-size: 14px; }
+.modal .fg input:focus, .modal .fg select:focus { outline: none; border-color: #1a1f2e; }
 .modal-footer { display: flex; gap: 8px; margin-top: 16px; }
 .modal-footer button { flex: 1; padding: 11px; border: none; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; }
 .btn-cancel { background: #f0f2f5; color: #555; }
@@ -52,7 +54,13 @@ nav a .ic { font-size: 21px; }
   <a href="index.html">&#x2190; 홈</a>
 </div>
 
-<div id="settingContent"><div class="loading" style="padding:40px 20px">&#x23F3; 데이터 불러오는 중...<br><br><button onclick="loadSetting()" style="padding:8px 16px;background:#1a1f2e;color:white;border:none;border-radius:8px;font-size:13px;cursor:pointer;margin-top:8px">&#x1F504; 다시 시도</button></div></div>
+<div id="settingContent">
+  <div class="loading-msg">
+    &#x23F3; 데이터 불러오는 중...
+    <br><br>
+    <button class="retry-btn" onclick="loadSetting()">&#x1F504; 다시 시도</button>
+  </div>
+</div>
 
 <div class="overlay" id="editModal">
   <div class="modal">
@@ -66,6 +74,7 @@ nav a .ic { font-size: 21px; }
       <input type="text" id="editName" placeholder="이름 입력"
         onkeydown="if(event.key==='Enter')saveEdit()">
     </div>
+    <div id="editExtraFields"></div>
     <div class="modal-footer">
       <button class="btn-cancel" onclick="closeModal()">취소</button>
       <button class="btn-save" id="btnSave" onclick="saveEdit()">저장</button>
@@ -86,32 +95,47 @@ nav a .ic { font-size: 21px; }
 <script>
 const GAS = 'https://script.google.com/macros/s/AKfycbw42bSbW1U2SUfta-d1cjYDD5PZG6q4JeIy5yYePRKLXTWU78ueprlss2SjHSK3GpVz6g/exec';
 let editCtx = null;
+let globalLabels = {};
+
+// 계좌 데이터 (AppSheet 기반 - labels API에 없으므로 별도 관리)
+let accountData = {
+  'C001': { name: '\uC8FC\uC7AC\uD64D \uAD6D\uBBFC\uC740\uD589 \uD1F4\uC9C1\uC5F0\uAE08DC', user: 'A001', bank: 'B001', product: 'D003' },
+  'C002': { name: '\uC8FC\uC7AC\uD64D \uC0BC\uC131\uC99D\uAD8C \uC5F0\uAE08\uC800\uCD95', user: 'A001', bank: 'B002', product: 'D001' },
+  'C003': { name: '\uC8FC\uC7AC\uD64D \uACBD\uB0A8\uC740\uD589 \uB3C4\uBBFC IRP', user: 'A001', bank: 'B003', product: 'D002' },
+  'C004': { name: '\uC548\uC18C\uC601 \uACBD\uB0A8\uC740\uD589 \uB3C4\uBBFC IRP', user: 'A002', bank: 'B003', product: 'D002' },
+  'C005': { name: '\uC548\uC18C\uC601 \uD558\uB098\uC740\uD589 \uD1F4\uC9C1\uC5F0\uAE08DC', user: 'A002', bank: 'B004', product: 'D003' }
+};
+
 const CATS = [
-  {key:'사용자', icon:'\uD83D\uDC64', title:'사용자 관리'},
-  {key:'금융기관', icon:'\uD83C\uDFE6', title:'금융기관 관리'},
-  {key:'상품', icon:'\uD83D\uDCE6', title:'상품 관리'},
-  {key:'종목', icon:'\uD83D\uDCC8', title:'종목 관리'}
+  { key: '\uC0AC\uC6A9\uC790', icon: '\uD83D\uDC64', title: '\uC0AC\uC6A9\uC790 \uAD00\uB9AC', type: 'user' },
+  { key: '\uAE08\uC735\uAE30\uAD00', icon: '\uD83C\uDFE6', title: '\uAE08\uC735\uAE30\uAD00 \uAD00\uB9AC', type: 'institution' },
+  { key: '\uC0C1\uD488', icon: '\uD83D\uDCE6', title: '\uC0C1\uD488 \uAD00\uB9AC', type: 'product' },
+  { key: '\uACC4\uC88C', icon: '\uD83C\uDFF7\uFE0F', title: '\uACC4\uC88C \uAD00\uB9AC', type: 'account', special: true },
+  { key: '\uC885\uBAA9', icon: '\uD83D\uDCC8', title: '\uC885\uBAA9 \uAD00\uB9AC', type: 'stock' }
 ];
 
 async function loadSetting() {
   const el = document.getElementById('settingContent');
+  el.innerHTML = '<div class="loading-msg">\u23F3 \uB370\uC774\uD130 \uBD88\uB7EC\uC624\uB294 \uC911...</div>';
   let retries = 3;
   while (retries > 0) {
     try {
       const ctrl = new AbortController();
-      const tid = setTimeout(()=>ctrl.abort(), 10000);
-      const res = await fetch(GAS+'?action=api&type=labels', {signal: ctrl.signal});
+      const tid = setTimeout(() => ctrl.abort(), 12000);
+      const res = await fetch(GAS + '?action=api&type=labels', { signal: ctrl.signal });
       clearTimeout(tid);
-      const labels = await res.json();
-      renderSetting(labels);
+      const text = await res.text();
+      if (!text || text.length === 0 || text.startsWith('<')) throw new Error('\uBE48 \uC751\uB2F5');
+      globalLabels = JSON.parse(text);
+      renderSetting(globalLabels);
       return;
     } catch(e) {
       retries--;
       if (retries > 0) {
-        el.innerHTML = '<div class="loading">\u23F3 재시도 중... ('+retries+'회 남음)</div>';
-        await new Promise(r=>setTimeout(r,3000));
+        el.innerHTML = '<div class="loading-msg">\u23F3 \uC7AC\uC2DC\uB3C4 \uC911... (' + retries + '\uD68C \uB0A8\uC74C)<br><br><button class="retry-btn" onclick="loadSetting()">\uD83D\uDD04 \uC9C1\uC811 \uC2DC\uB3C4</button></div>';
+        await new Promise(r => setTimeout(r, 2000));
       } else {
-        el.innerHTML = '<div style="padding:20px;text-align:center;color:#e74c3c;font-size:13px">\u274C 데이터 로드 실패: '+e.message+'<br><br><button onclick="loadSetting()" style="padding:8px 16px;background:#1a1f2e;color:white;border:none;border-radius:8px;cursor:pointer">\uD83D\uDD04 다시 시도</button></div>';
+        el.innerHTML = '<div class="loading-msg" style="color:#e74c3c">\u274C \uB370\uC774\uD130 \uB85C\uB4DC \uC2E4\uD328<br><small>' + e.message + '</small><br><br><button class="retry-btn" onclick="loadSetting()">\uD83D\uDD04 \uB2E4\uC2DC \uC2DC\uB3C4</button></div>';
       }
     }
   }
@@ -120,38 +144,83 @@ async function loadSetting() {
 function renderSetting(labels) {
   let html = '';
   CATS.forEach(cat => {
-    const data = labels[cat.key]||{};
-    const entries = Object.entries(data);
-    let items = entries.length===0
-      ? '<div class="empty-msg">\uD83D\uDCEB 항목이 없습니다</div>'
-      : entries.map(([id,name]) =>
+    let data = {};
+    let entries = [];
+    if (cat.special) {
+      // Account data
+      data = accountData;
+      entries = Object.entries(data).map(([id, v]) => {
+        const uName = (labels['\uC0AC\uC6A9\uC790'] || {})[v.user] || v.user;
+        const bName = (labels['\uAE08\uC735\uAE30\uAD00'] || {})[v.bank] || v.bank;
+        const pName = (labels['\uC0C1\uD488'] || {})[v.product] || v.product;
+        return [id, v.name, uName + ' / ' + bName + ' / ' + pName, v];
+      });
+    } else {
+      data = labels[cat.key] || {};
+      entries = Object.entries(data).map(([id, name]) => [id, name, null, null]);
+    }
+
+    let items = entries.length === 0
+      ? '<div class="empty-msg">\uD83D\uDCEB \uD56D\uBAA9\uC774 \uC5C6\uC2B5\uB2C8\uB2E4</div>'
+      : entries.map(([id, name, sub, extra]) =>
           '<div class="master-item">' +
-          '<span class="master-badge">'+id+'</span>' +
-          '<span class="master-name">'+name+'</span>' +
-          '<button class="btn-edit" onclick="openEdit(''+cat.key+'',''+id+'',''+name.replace(/'/g,"\\'")+'')">' +
-          '수정</button>' +
-          '<button class="btn-delete" onclick="deleteItem(''+cat.key+'',''+id+'',''+name.replace(/'/g,"\\'")+'')">' +
-          '삭제</button></div>'
+          '<span class="master-badge">' + id + '</span>' +
+          '<div style="flex:1"><div class="master-name">' + name + '</div>' +
+          (sub ? '<div class="master-sub">' + sub + '</div>' : '') +
+          '</div>' +
+          '<button class="btn-edit" onclick="openEdit(\'' + cat.type + '\',\'' + id + '\',\'' + name.replace(/'/g,"\\'") + '\')">\uC218\uC815</button>' +
+          '<button class="btn-delete" onclick="deleteItem(\'' + cat.type + '\',\'' + id + '\',\'' + name.replace(/'/g,"\\'") + '\')">\uC0AD\uC81C</button>' +
+          '</div>'
         ).join('');
+
+    let addRow = '';
+    if (cat.special) {
+      // Account add row needs more fields
+      const userOpts = Object.entries(labels['\uC0AC\uC6A9\uC790'] || {}).map(([v,l]) => '<option value="' + v + '">' + l + '</option>').join('');
+      const bankOpts = Object.entries(labels['\uAE08\uC735\uAE30\uAD00'] || {}).map(([v,l]) => '<option value="' + v + '">' + l + '</option>').join('');
+      const prodOpts = Object.entries(labels['\uC0C1\uD488'] || {}).map(([v,l]) => '<option value="' + v + '">' + l + '</option>').join('');
+      addRow = '<div class="add-row">' +
+        '<select id="new_acct_user"><option value="">\uC0AC\uC6A9\uC790</option>' + userOpts + '</select>' +
+        '<select id="new_acct_bank"><option value="">\uAE08\uC735\uAE30\uAD00</option>' + bankOpts + '</select>' +
+        '<select id="new_acct_prod"><option value="">\uC0C1\uD488</option>' + prodOpts + '</select>' +
+        '<button class="btn-add" onclick="addAccount()">+ \uCD94\uAC00</button>' +
+        '</div>';
+    } else {
+      addRow = '<div class="add-row">' +
+        '<input type="text" id="new_' + cat.type + '" placeholder="' + cat.title.replace(' \uAD00\uB9AC', '') + ' \uC774\uB984 \uC785\uB825" onkeydown="if(event.key==='Enter')addItem(\'' + cat.type + '\',\'' + cat.key + '\')">' +
+        '<button class="btn-add" onclick="addItem(\'' + cat.type + '\',\'' + cat.key + '\')">' +
+        '+ \uCD94\uAC00</button>' +
+        '</div>';
+    }
+
     html += '<div class="section"><div class="card">' +
-      '<h2>'+cat.icon+' '+cat.title+'</h2>' +
-      '<div id="list_'+cat.key+'">'+items+'</div>' +
-      '<div class="add-row">' +
-      '<input type="text" id="new_'+cat.key+'" placeholder="'+cat.title.replace(' 관리','')+' 이름 입력" ' +
-      'onkeydown="if(event.key==='Enter')addItem(''+cat.key+'')">' +
-      '<button class="btn-add" onclick="addItem(''+cat.key+'')">+ 추가</button>' +
-      '</div></div></div>';
+      '<h2>' + cat.icon + ' ' + cat.title + '</h2>' +
+      '<div>' + items + '</div>' + addRow +
+      '</div></div>';
   });
   document.getElementById('settingContent').innerHTML = html;
 }
 
-function openEdit(cat, id, name) {
-  editCtx = {cat, id};
-  document.getElementById('modalTitle').textContent = cat+' 수정';
+function openEdit(type, id, name) {
+  editCtx = { type, id };
+  document.getElementById('modalTitle').textContent = '\uD56D\uBAA9 \uC218\uC815';
   document.getElementById('editId').value = id;
   document.getElementById('editName').value = name;
+  const extra = document.getElementById('editExtraFields');
+  extra.innerHTML = '';
+  if (type === 'account') {
+    const acc = accountData[id] || {};
+    const labels = globalLabels;
+    const userOpts = Object.entries(labels['\uC0AC\uC6A9\uC790'] || {}).map(([v,l]) => '<option value="' + v + '"' + (v===acc.user?' selected':'') + '>' + l + '</option>').join('');
+    const bankOpts = Object.entries(labels['\uAE08\uC735\uAE30\uAD00'] || {}).map(([v,l]) => '<option value="' + v + '"' + (v===acc.bank?' selected':'') + '>' + l + '</option>').join('');
+    const prodOpts = Object.entries(labels['\uC0C1\uD488'] || {}).map(([v,l]) => '<option value="' + v + '"' + (v===acc.product?' selected':'') + '>' + l + '</option>').join('');
+    extra.innerHTML =
+      '<div class="fg"><label>\uC0AC\uC6A9\uC790</label><select id="editUser"><option value="">\uC120\uD0DD</option>' + userOpts + '</select></div>' +
+      '<div class="fg"><label>\uAE08\uC735\uAE30\uAD00</label><select id="editBank"><option value="">\uC120\uD0DD</option>' + bankOpts + '</select></div>' +
+      '<div class="fg"><label>\uC0C1\uD488</label><select id="editProd"><option value="">\uC120\uD0DD</option>' + prodOpts + '</select></div>';
+  }
   document.getElementById('editModal').classList.add('active');
-  setTimeout(()=>document.getElementById('editName').focus(),100);
+  setTimeout(() => document.getElementById('editName').focus(), 100);
 }
 
 function closeModal() {
@@ -162,61 +231,102 @@ function closeModal() {
 async function saveEdit() {
   if (!editCtx) return;
   const name = document.getElementById('editName').value.trim();
-  if (!name) { showToast('\u26A0\uFE0F 이름을 입력해주세요', true); return; }
+  if (!name) { showToast('\u26A0\uFE0F \uC774\uB984\uC744 \uC785\uB825\uD574\uC8FC\uC138\uC694', true); return; }
   const btn = document.getElementById('btnSave');
-  btn.textContent='\u23F3...'; btn.disabled=true;
+  btn.textContent = '\u23F3...'; btn.disabled = true;
+
+  const payload = { action: 'update', type: 'setting', category: editCtx.type, id: editCtx.id, name };
+  if (editCtx.type === 'account') {
+    payload.user = document.getElementById('editUser').value;
+    payload.bank = document.getElementById('editBank').value;
+    payload.product = document.getElementById('editProd').value;
+  }
+
   try {
-    const res = await fetch(GAS, {
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({action:'update',type:'setting',category:editCtx.cat,id:editCtx.id,name})
-    });
+    const res = await fetch(GAS, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
     const r = await res.json();
-    if (r.result==='success'||r.status==='ok'||r.ok) {
-      showToast('\u2705 수정되었습니다!'); closeModal(); loadSetting();
-    } else { showToast('\u274C 수정 실패: '+(r.message||'오류'), true); }
-  } catch(e) { showToast('\u274C 수정 실패: '+e.message, true); }
-  finally { btn.textContent='저장'; btn.disabled=false; }
+    if (r.result === 'success' || r.status === 'ok') {
+      if (editCtx.type === 'account') {
+        accountData[editCtx.id] = { name, user: payload.user, bank: payload.bank, product: payload.product };
+      } else {
+        const cat = CATS.find(c => c.type === editCtx.type);
+        if (cat && globalLabels[cat.key]) globalLabels[cat.key][editCtx.id] = name;
+      }
+      showToast('\u2705 \uC218\uC815\uB418\uC5C8\uC2B5\uB2C8\uB2E4!');
+      closeModal();
+      renderSetting(globalLabels);
+    } else showToast('\u274C \uC218\uC815 \uC2E4\uD328: ' + (r.message || '\uC624\uB958'), true);
+  } catch(e) { showToast('\u274C \uC218\uC815 \uC2E4\uD328: ' + e.message, true); }
+  finally { btn.textContent = '\uC800\uC7A5'; btn.disabled = false; }
 }
 
-async function deleteItem(cat, id, name) {
-  if (!confirm('"'+name+'"을(를) 삭제하시겠습니까?\n\u26A0\uFE0F 관련 데이터가 영향을 받을 수 있습니다.')) return;
+async function deleteItem(type, id, name) {
+  if (!confirm('"' + name + '"\uC744(\uB97C) \uC0AD\uC81C\uD558\uC2DC\uACA0\uC2B5\uB2C8\uAE4C?')) return;
   try {
-    const res = await fetch(GAS, {
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({action:'delete',type:'setting',category:cat,id})
-    });
+    const res = await fetch(GAS, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'delete', type: 'setting', category: type, id }) });
     const r = await res.json();
-    if (r.result==='success'||r.status==='ok'||r.ok) { showToast('\u2705 삭제되었습니다!'); loadSetting(); }
-    else showToast('\u274C 삭제 실패: '+(r.message||'오류'), true);
-  } catch(e) { showToast('\u274C 삭제 실패: '+e.message, true); }
+    if (r.result === 'success' || r.status === 'ok') {
+      if (type === 'account') { delete accountData[id]; }
+      else {
+        const cat = CATS.find(c => c.type === type);
+        if (cat && globalLabels[cat.key]) delete globalLabels[cat.key][id];
+      }
+      showToast('\u2705 \uC0AD\uC81C\uB418\uC5C8\uC2B5\uB2C8\uB2E4!');
+      renderSetting(globalLabels);
+    } else showToast('\u274C \uC0AD\uC81C \uC2E4\uD328: ' + (r.message || '\uC624\uB958'), true);
+  } catch(e) { showToast('\u274C \uC0AD\uC81C \uC2E4\uD328: ' + e.message, true); }
 }
 
-async function addItem(cat) {
-  const input = document.getElementById('new_'+cat);
+async function addItem(type, key) {
+  const input = document.getElementById('new_' + type);
   const name = input.value.trim();
-  if (!name) { showToast('\u26A0\uFE0F 이름을 입력해주세요', true); return; }
+  if (!name) { showToast('\u26A0\uFE0F \uC774\uB984\uC744 \uC785\uB825\uD574\uC8FC\uC138\uC694', true); return; }
   try {
-    const res = await fetch(GAS, {
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({action:'add',type:'setting',category:cat,name})
-    });
+    const res = await fetch(GAS, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'add', type: 'setting', category: type, name }) });
     const r = await res.json();
-    if (r.result==='success'||r.status==='ok'||r.ok) { showToast('\u2705 추가되었습니다!'); input.value=''; loadSetting(); }
-    else showToast('\u274C 추가 실패: '+(r.message||'오류'), true);
-  } catch(e) { showToast('\u274C 추가 실패: '+e.message, true); }
+    if (r.result === 'success' || r.status === 'ok') {
+      const newId = r.id || type.charAt(0).toUpperCase() + String(Object.keys(globalLabels[key] || {}).length + 1).padStart(3, '0');
+      if (!globalLabels[key]) globalLabels[key] = {};
+      globalLabels[key][newId] = name;
+      showToast('\u2705 \uCD94\uAC00\uB418\uC5C8\uC2B5\uB2C8\uB2E4!');
+      input.value = '';
+      renderSetting(globalLabels);
+    } else showToast('\u274C \uCD94\uAC00 \uC2E4\uD328: ' + (r.message || '\uC624\uB958'), true);
+  } catch(e) { showToast('\u274C \uCD94\uAC00 \uC2E4\uD328: ' + e.message, true); }
+}
+
+async function addAccount() {
+  const user = document.getElementById('new_acct_user').value;
+  const bank = document.getElementById('new_acct_bank').value;
+  const prod = document.getElementById('new_acct_prod').value;
+  if (!user || !bank || !prod) { showToast('\u26A0\uFE0F \uC0AC\uC6A9\uC790, \uAE08\uC735\uAE30\uAD00, \uC0C1\uD488\uC744 \uBAA8\uB450 \uC120\uD0DD\uD574\uC8FC\uC138\uC694', true); return; }
+  const labels = globalLabels;
+  const uName = (labels['\uC0AC\uC6A9\uC790'] || {})[user] || user;
+  const bName = (labels['\uAE08\uC735\uAE30\uAD00'] || {})[bank] || bank;
+  const pName = (labels['\uC0C1\uD488'] || {})[prod] || prod;
+  const name = uName + ' ' + bName + ' ' + pName;
+  try {
+    const res = await fetch(GAS, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'add', type: 'setting', category: 'account', name, user, bank, product: prod }) });
+    const r = await res.json();
+    if (r.result === 'success' || r.status === 'ok') {
+      const newId = r.id || 'C' + String(Object.keys(accountData).length + 1).padStart(3, '0');
+      accountData[newId] = { name, user, bank, product: prod };
+      showToast('\u2705 \uACC4\uC88C\uAC00 \uCD94\uAC00\uB418\uC5C8\uC2B5\uB2C8\uB2E4!');
+      document.getElementById('new_acct_user').value = '';
+      document.getElementById('new_acct_bank').value = '';
+      document.getElementById('new_acct_prod').value = '';
+      renderSetting(globalLabels);
+    } else showToast('\u274C \uCD94\uAC00 \uC2E4\uD328: ' + (r.message || '\uC624\uB958'), true);
+  } catch(e) { showToast('\u274C \uCD94\uAC00 \uC2E4\uD328: ' + e.message, true); }
 }
 
 function showToast(msg, isErr) {
-  const t=document.getElementById('toast');
-  t.textContent=msg; t.style.background=isErr?'#e74c3c':'#1a1f2e';
-  t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),3000);
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.style.background = isErr ? '#e74c3c' : '#1a1f2e';
+  t.classList.add('show'); setTimeout(() => t.classList.remove('show'), 3000);
 }
 
-// Auto-load on page start
-(async()=>{
-  await new Promise(r=>setTimeout(r,500));
-  loadSetting();
-})();
+(async () => { await new Promise(r => setTimeout(r, 300)); loadSetting(); })();
 </script>
 </body>
 </html>
