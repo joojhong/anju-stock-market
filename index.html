@@ -1,92 +1,97 @@
 <!DOCTYPE html>
 <html lang="ko">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>안주주식마켓</title>
-<style>
-* { margin:0; padding:0; box-sizing:border-box; }
-body { font-family:-apple-system,sans-serif; background:#f0f2f5; color:#333; }
-.header { background:#1a1a2e; color:white; padding:16px 20px; }
-.header h1 { font-size:18px; font-weight:700; }
-.filter-wrap { padding:12px 16px; background:white; border-bottom:1px solid #eee; }
-select { width:100%; padding:10px 14px; border:1.5px solid #ddd; border-radius:10px; font-size:15px; background:white; color:#333; }
-.stats-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; padding:14px; }
-.stat-card { background:white; border-radius:14px; padding:14px; box-shadow:0 1px 4px rgba(0,0,0,0.08); }
-.stat-card.full { grid-column:span 2; }
-.stat-label { font-size:11px; color:#999; margin-bottom:6px; font-weight:600; }
-.stat-value { font-size:20px; font-weight:800; }
-.up { color:#e74c3c; }
-.down { color:#3498db; }
-.section { padding:8px 16px; font-size:12px; color:#888; font-weight:700; background:#f0f2f5; }
-.stock-list { background:white; }
-.stock-item { display:flex; align-items:center; padding:14px 16px; border-bottom:1px solid #f5f5f5; }
-.stock-info { flex:1; }
-.stock-name { font-size:14px; font-weight:600; }
-.stock-price { font-size:11px; color:#aaa; margin-top:2px; }
-.stock-vals { text-align:right; }
-.stock-eval { font-size:15px; font-weight:700; }
-.stock-rates { font-size:11px; margin-top:3px; }
-.loading { text-align:center; padding:50px; color:#aaa; font-size:14px; }
-.bottom-nav { background:white; border-top:1px solid #eee; display:flex; margin-top:16px; }
-.nav-item { flex:1; text-align:center; padding:8px 0 10px; font-size:10px; color:#aaa; text-decoration:none; display:flex; flex-direction:column; align-items:center; gap:3px; }
-.nav-item.active { color:#1a1a2e; font-weight:700; }
-.nav-icon { font-size:22px; }
-</style>
-</head>
-<body>
-<div class="header"><h1>📊 안주주식마켓</h1></div>
-<div class="filter-wrap">
-  <select id="userFilter" onchange="loadData()"><option value="전체">⏳ 불러오는 중...</option></select>
-</div>
-<div id="content"><div class="loading">⏳ 데이터 불러오는 중...</div></div>
-<nav class="bottom-nav">
-  <a class="nav-item active" href="#"><span class="nav-icon">📊</span>통계</a>
-  <a class="nav-item" href="https://www.appsheet.com/start/c98f983c-1548-4969-be9d-9e2120741c00#view=Trading" target="_blank"><span class="nav-icon">📝</span>거래입력</a>
-  <a class="nav-item" href="history.html" target="_blank"><span class="nav-icon">📋</span>히스토리</a>
-  <a class="nav-item" href="https://www.appsheet.com/start/c98f983c-1548-4969-be9d-9e2120741c00#view=Setting" target="_blank"><span class="nav-icon">⚙️</span>설정</a>
-  <a class="nav-item" href="https://www.appsheet.com/start/c98f983c-1548-4969-be9d-9e2120741c00#view=Snapshot" target="_blank"><span class="nav-icon">📸</span>스냅샷</a>
-</nav>
-<script>
-var GAS_URL='https://script.google.com/macros/s/AKfycbw42bSbW1U2SUfta-d1cjYDD5PZG6q4JeIy5yYePRKLXTWU78ueprlss2SjHSK3GpVz6g/exec';
-function num(n){return Math.round(n).toLocaleString('ko-KR');}
-function rate(r){return(r>=0?'+':'')+r.toFixed(2)+'%';}
-function cls(v){return v>=0?'up':'down';}
-function loadData(){
-  var filter=document.getElementById('userFilter').value;
-  document.getElementById('content').innerHTML='<div class="loading">⏳ 불러오는 중...</div>';
-  fetch(GAS_URL+'?action=api&type=data&filter='+encodeURIComponent(filter))
-    .then(function(r){return r.json();}).then(render)
-    .catch(function(e){document.getElementById('content').innerHTML='<div class="loading">❌ 오류: '+e.message+'</div>';});
-}
-function initFilters(){
-  fetch(GAS_URL+'?action=api&type=filters')
-    .then(function(r){return r.json();})
-    .then(function(options){
-      var sel=document.getElementById('userFilter');
-      sel.innerHTML='';
-      options.forEach(function(opt){var o=document.createElement('option');o.value=opt.value;o.text=opt.label;sel.appendChild(o);});
-      loadData();
-    }).catch(function(){document.getElementById('userFilter').innerHTML='<option value="전체">👥 전체</option>';loadData();});
-}
-function render(data){
-  var t=data.통계;
-  var html='<div class="stats-grid">';
-  html+='<div class="stat-card full"><div class="stat-label">💰 총 평가액</div><div class="stat-value">₩'+num(t.총평가액)+'</div></div>';
-  html+='<div class="stat-card"><div class="stat-label">📈 손익금</div><div class="stat-value '+cls(t.손익금)+'">'+(t.손익금>=0?'+':'')+'₩'+num(t.손익금)+'</div></div>';
-  html+='<div class="stat-card"><div class="stat-label">📊 손익률</div><div class="stat-value '+cls(t.손익률)+'">'+rate(t.손익률)+'</div></div>';
-  html+='<div class="stat-card"><div class="stat-label">📉 전일대비</div><div class="stat-value '+cls(t.전일대비금액)+'">'+(t.전일대비금액>=0?'+':'')+'₩'+num(t.전일대비금액)+'</div></div>';
-  html+='<div class="stat-card"><div class="stat-label">🔄 전일대비율</div><div class="stat-value '+cls(t.전일대비율)+'">'+rate(t.전일대비율)+'</div></div>';
-  html+='</div>';
-  html+='<div class="section">📈 보유 종목</div><div class="stock-list">';
-  data.종목목록.forEach(function(s){
-    html+='<div class="stock-item"><div class="stock-info"><div class="stock-name">'+s.종목명+'</div><div class="stock-price">현재가 ₩'+num(s.현재가)+'</div></div>';
-    html+='<div class="stock-vals"><div class="stock-eval">₩'+num(s.평가액)+'</div><div class="stock-rates"><span class="'+cls(s.손익률)+'">'+rate(s.손익률)+'</span> | <span class="'+cls(s.전일대비율)+'">'+rate(s.전일대비율)+'</span></div></div></div>';
-  });
-  html+='</div>';
-  document.getElementById('content').innerHTML=html;
-}
-initFilters();
-</script>
-</body>
-</html>
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>안주주식마켓</title>
+  <style>
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body { font-family:-apple-system,sans-serif; background:#f0f2f5; color:#333; padding-bottom:72px; }
+    .header { background:#1a1a2e; color:white; padding:16px 20px; }
+    .header h1 { font-size:18px; font-weight:700; }
+    .filter-wrap { padding:12px 16px; background:white; border-bottom:1px solid #eee; }
+    select { width:100%; padding:10px 14px; border:1.5px solid #ddd; border-radius:10px; font-size:15px; background:white; color:#333; }
+    .stats-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; padding:14px; }
+    .stat-card { background:white; border-radius:14px; padding:14px; box-shadow:0 1px 4px rgba(0,0,0,0.08); }
+    .stat-card.full { grid-column:span 2; }
+    .stat-label { font-size:11px; color:#999; margin-bottom:6px; font-weight:600; }
+    .stat-value { font-size:20px; font-weight:800; }
+    .up { color:#e74c3c; }
+    .down { color:#3498db; }
+    .section { padding:8px 16px; font-size:12px; color:#888; font-weight:700; background:#f0f2f5; }
+    .stock-list { background:white; }
+    .stock-item { display:flex; align-items:center; padding:14px 16px; border-bottom:1px solid #f5f5f5; }
+    .stock-info { flex:1; }
+    .stock-name { font-size:14px; font-weight:600; }
+    .stock-price { font-size:11px; color:#aaa; margin-top:2px; }
+    .stock-vals { text-align:right; }
+    .stock-eval { font-size:15px; font-weight:700; }
+    .stock-rates { font-size:11px; margin-top:3px; }
+    .loading { text-align:center; padding:50px; color:#aaa; font-size:14px; }
+    nav { position:fixed; bottom:0; left:0; width:100%; background:white; border-top:1px solid #e8eaed; display:grid; grid-template-columns:repeat(5,1fr); z-index:100; }
+    nav a { display:flex; flex-direction:column; align-items:center; padding:9px 0 7px; text-decoration:none; color:#80868b; font-size:10px; gap:2px; }
+    nav a.active { color:#1a1f2e; font-weight:700; }
+    nav a .ic { font-size:21px; }
+    </style>
+  </head>
+  <body>
+    <div class="header"><h1>📊 안주주식마켓</h1></div>div>
+  <div class="filter-wrap">
+  <select id="userFilter" onchange="loadData()"><option value="전체">⏳ 불러오는 중...</option>option></select>select>
+  </div>div>
+  <div id="content"><div class="loading">⏳ 데이터 불러오는 중...</div>div></div>div>
+  <nav>
+    <a class="active" href="#"><span class="ic">📊</span>span>통계</a>a>
+    <a href="https://www.appsheet.com/start/c98f983c-1548-4969-be9d-9e2120741c00#view=Trading" target="_blank"><span class="ic">✏️</span>span>거래입력</a>a>
+    <a href="history.html"><span class="ic">📈</span>span>히스토리</a>a>
+    <a href="https://www.appsheet.com/start/c98f983c-1548-4969-be9d-9e2120741c00#view=Setting" target="_blank"><span class="ic">⚙️</span>span>설정</a>a>
+    <a href="https://www.appsheet.com/start/c98f983c-1548-4969-be9d-9e2120741c00#view=Snapshot" target="_blank"><span class="ic">📷</span>span>스냅샷</a>a>
+  </nav>
+    <script>
+      var GAS_URL='https://script.google.com/macros/s/AKfycbw42bSbW1U2SUfta-d1cjYDD5PZG6q4JeIy5yYePRKLXTWU78ueprlss2SjHSK3GpVz6g/exec';
+      function num(n){return Math.round(n).toLocaleString('ko-KR');}
+      function rate(r){return(r>=0?'+':'')+r.toFixed(2)+'%';}
+      function cls(v){return v>=0?'up':'down';}
+      function loadData(){
+        var filter=document.getElementById('userFilter').value;
+        document.getElementById('content').innerHTML='<div class="loading">⏳ 불러오는 중...</div>';
+        fetch(GAS_URL+'?action=api&type=data&filter='+encodeURIComponent(filter))
+        .then(function(r){return r.json();}).then(render)
+        .catch(function(e){document.getElementById('content').innerHTML='<div class="loading">❌ 오류: '+e.message+'</div>';});
+      }
+      function initFilters(){
+        fetch(GAS_URL+'?action=api&type=filters')
+        .then(function(r){return r.json();})
+        .then(function(options){
+          var sel=document.getElementById('userFilter');
+          sel.innerHTML='';
+          options.forEach(function(opt){var o=document.createElement('option');o.value=opt.value;o.text=opt.label;sel.appendChild(o);});
+          loadData();
+        }).catch(function(){document.getElementById('userFilter').innerHTML='<option value="전체">👥 전체</option>';loadData();});
+      }
+      function render(data){
+        var t=data.통계;
+        var html='<div class="stats-grid">';
+        html+='<div class="stat-card full"><div class="stat-label">💰 총 평가액</div><div class="stat-value">₩'+num(t.총평가액)+'</div></div>';
+      html+='<div class="stat-card"><div class="stat-label">📈 손익금</div><div class="stat-value '+cls(t.손익금)+'">'+(t.손익금>=0?'+':'')+'₩'+num(t.손익금)+'</div></div>';
+        html+='<div class="stat-card"><div class="stat-label">📊 손익률</div><div class="stat-value '+cls(t.손익률)+'">'+rate(t.손익률)+'</div></div>';
+        html+='<div class="stat-card"><div class="stat-label">📉 전일대비</div><div class="stat-value '+cls(t.전일대비금액)+'">'+(t.전일대비금액>=0?'+':'')+'₩'+num(t.전일대비금액)+'</div></div>';
+        html+='<div class="stat-card"><div class="stat-label">🔄 전일대비율</div><div class="stat-value '+cls(t.전일대비율)+'">'+rate(t.전일대비율)+'</div></div>';
+        html+='</div>';
+        html+='<div class="section">📈 보유 종목</div><div class="stock-list">';
+        data.종목목록.forEach(function(s){
+          html+='<div class="stock-item"><div class="stock-info"><div class="stock-name">'+s.종목명+'</div><div class="stock-price">현재가 ₩'+num(s.현재가)+'</div></div>';
+          html+='<div class="stock-vals"><div class="stock-eval">₩'+num(s.평가액)+'</div><div class="stock-rates"><span class="'+cls(s.손익률)+'">'+rate(s.손익률)+'</span> | <span class="'+cls(s.전일대비율)+'">'+rate(s.전일대비율)+'</span></div></div></div>';
+        });
+        html+='</div>';
+        document.getElementById('content').innerHTML=html;
+      }
+      initFilters();
+    </script>
+  </body>
+</html>html>
+    </script>
+  </nav></h1>
+  </body>
+  </style></title>
+  </head>
