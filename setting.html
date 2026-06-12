@@ -326,7 +326,30 @@ function showToast(msg, isErr) {
   t.classList.add('show'); setTimeout(() => t.classList.remove('show'), 3000);
 }
 
-(async () => { await new Promise(r => setTimeout(r, 300)); loadSetting(); })();
+// Immediately render with cached data, then refresh from API
+const CACHED_LABELS = {
+  "\uC0AC\uC6A9\uC790": {"A001":"\uC8FC\uC7AC\uD64D","A002":"\uC548\uC18C\uC601"},
+  "\uAE08\uC735\uAE30\uAD00": {"B001":"\uAD6D\uBBFC\uC740\uD589","B002":"\uC0BC\uC131\uC99D\uAD8C","B003":"\uACBD\uB0A8\uC740\uD589","B004":"\uD558\uB098\uC740\uD589"},
+  "\uC0C1\uD488": {"D001":"\uC5F0\uAE08\uC800\uCD95","D002":"\uB3C4\uBBFC IRP","D003":"\uD1F4\uC9C1\uC5F0\uAE08DC","D004":"IRP","D005":"ISA"},
+  "\uC885\uBAA9": {"KRX:379810":"KODEX \uBBF8\uAD6D\uB098\uC2A4\uB2E5100","KRX:379800":"KODEX \uBBF8\uAD6DSBP500","KRX:438100":"ACE \uBBF8\uAD6D\uB098\uC2A4\uB2E5100\uBBF8\uAD6D\uCC44\uD63C\uD56950\uC561\uD2F0\uBE0C","KRX:438080":"ACE \uBBF8\uAD6DSBP500\uBBF8\uAD6D\uCC44\uD63C\uD56950\uC561\uD2F0\uBE0C","KRX:0137V0":"KIWOOM \uBBF8\uAD6DSBP500\uBAA8\uBA58\uD140","KRX:0069M0":"1Q \uBBF8\uAD6D\uB098\uC2A4\uB2E5100"}
+};
+globalLabels = CACHED_LABELS;
+renderSetting(CACHED_LABELS);
+// Then try to refresh from API in background
+(async () => {
+  try {
+    const ctrl = new AbortController();
+    const tid = setTimeout(() => ctrl.abort(), 15000);
+    const res = await fetch(GAS + '?action=api&type=labels', { signal: ctrl.signal });
+    clearTimeout(tid);
+    const text = await res.text();
+    if (text && text.length > 0 && !text.startsWith('<')) {
+      const fresh = JSON.parse(text);
+      globalLabels = fresh;
+      renderSetting(fresh);
+    }
+  } catch(e) { /* keep cached data */ }
+})();
 </script>
 </body>
 </html>
