@@ -212,7 +212,11 @@ function showToast(msg, isErr) {
   t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),3000);
 }
 
-loadSetting();
+// Auto-load on page start
+(async()=>{
+  await new Promise(r=>setTimeout(r,500));
+  loadSetting();
+})();
 </script>
 </body>
 </html>
