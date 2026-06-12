@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>설정 - 안주주식마켓</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #f0f2f5; color: #333; padding-bottom: 72px; }
+.header { background: #1a1f2e; color: white; padding: 16px 20px; display: flex; align-items: center; gap: 10px; position: sticky; top: 0; z-index: 100; }
+.header h1 { font-size: 18px; font-weight: 700; flex: 1; }
+.header a { color: rgba(255,255,255,0.65); font-size: 13px; text-decoration: none; padding: 4px 8px; border-radius: 6px; background: rgba(255,255,255,0.1); }
+.section { padding: 14px 16px 4px; }
+.card { background: white; border-radius: 14px; padding: 16px; box-shadow: 0 1px 4px rgba(0,0,0,.08); margin-bottom: 12px; }
+.card h2 { font-size: 14px; font-weight: 700; color: #1a1f2e; margin-bottom: 12px; }
+.master-item { display: flex; align-items: center; padding: 11px 0; border-bottom: 1px solid #f5f5f5; gap: 8px; }
+.master-item:last-child { border-bottom: none; }
+.master-badge { font-size: 11px; font-weight: 700; color: #6c63ff; background: #f0efff; padding: 3px 8px; border-radius: 6px; white-space: nowrap; min-width: 64px; text-align: center; }
+.master-name { flex: 1; font-size: 14px; font-weight: 600; }
+.btn-edit { padding: 5px 10px; background: #f0f2f5; border: none; border-radius: 6px; font-size: 12px; cursor: pointer; color: #555; }
+.btn-delete { padding: 5px 10px; background: #fff0f0; border: none; border-radius: 6px; font-size: 12px; cursor: pointer; color: #e74c3c; }
+.add-row { display: flex; gap: 8px; margin-top: 12px; padding-top: 12px; border-top: 1px solid #f0f2f5; }
+.add-row input { flex: 1; padding: 9px 12px; border: 1.5px solid #ddd; border-radius: 8px; font-size: 13px; background: white; color: #333; }
+.add-row input:focus { outline: none; border-color: #1a1f2e; }
+.btn-add { padding: 9px 14px; background: #1a1f2e; color: white; border: none; border-radius: 8px; font-size: 13px; font-weight: 700; cursor: pointer; white-space: nowrap; }
+.empty-msg { text-align: center; padding: 16px; color: #aaa; font-size: 13px; }
+.loading { text-align: center; padding: 60px; color: #aaa; font-size: 14px; }
+.overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 200; display: none; align-items: center; justify-content: center; padding: 20px; }
+.overlay.active { display: flex; }
+.modal { background: white; border-radius: 16px; padding: 20px; width: 100%; max-width: 360px; }
+.modal h3 { font-size: 16px; font-weight: 700; color: #1a1f2e; margin-bottom: 16px; }
+.modal .fg { margin-bottom: 12px; }
+.modal .fg label { display: block; font-size: 11px; color: #888; font-weight: 600; margin-bottom: 5px; }
+.modal .fg input { width: 100%; padding: 10px 12px; border: 1.5px solid #ddd; border-radius: 8px; font-size: 14px; }
+.modal .fg input:focus { outline: none; border-color: #1a1f2e; }
+.modal-footer { display: flex; gap: 8px; margin-top: 16px; }
+.modal-footer button { flex: 1; padding: 11px; border: none; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; }
+.btn-cancel { background: #f0f2f5; color: #555; }
+.btn-save { background: #1a1f2e; color: white; }
+.btn-save:disabled { opacity: 0.6; }
+.toast { position: fixed; top: 70px; left: 50%; transform: translateX(-50%); background: #333; color: white; padding: 10px 20px; border-radius: 8px; font-size: 13px; font-weight: 600; z-index: 9999; opacity: 0; transition: opacity 0.3s; pointer-events: none; white-space: nowrap; }
+.toast.show { opacity: 1; }
+nav { position: fixed; bottom: 0; left: 0; width: 100%; background: white; border-top: 1px solid #e8eaed; display: grid; grid-template-columns: repeat(5, 1fr); z-index: 100; }
+nav a { display: flex; flex-direction: column; align-items: center; padding: 9px 0 7px; text-decoration: none; color: #80868b; font-size: 10px; gap: 2px; }
+nav a.active { color: #1a1f2e; font-weight: 700; }
+nav a .ic { font-size: 21px; }
+</style>
+</head>
+<body>
+<div class="header">
+  <h1>&#x2699;&#xFE0F; 설정</h1>
+  <a href="index.html">&#x2190; 홈</a>
+</div>
+
+<div id="settingContent"><div class="loading">&#x23F3; 데이터 불러오는 중...</div></div>
+
+<div class="overlay" id="editModal">
+  <div class="modal">
+    <h3 id="modalTitle">항목 수정</h3>
+    <div class="fg">
+      <label>ID</label>
+      <input type="text" id="editId" readonly style="background:#f8f9fa;color:#888;">
+    </div>
+    <div class="fg">
+      <label>이름</label>
+      <input type="text" id="editName" placeholder="이름 입력"
+        onkeydown="if(event.key==='Enter')saveEdit()">
+    </div>
+    <div class="modal-footer">
+      <button class="btn-cancel" onclick="closeModal()">취소</button>
+      <button class="btn-save" id="btnSave" onclick="saveEdit()">저장</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<nav>
+  <a href="index.html"><span class="ic">&#x1F4CA;</span>통계</a>
+  <a href="trading.html"><span class="ic">&#x270F;&#xFE0F;</span>거래입력</a>
+  <a href="history.html"><span class="ic">&#x1F4C8;</span>히스토리</a>
+  <a href="setting.html" class="active"><span class="ic">&#x2699;&#xFE0F;</span>설정</a>
+  <a href="snapshot.html"><span class="ic">&#x1F4F7;</span>스냅샷</a>
+</nav>
+
+<script>
+const GAS = 'https://script.google.com/macros/s/AKfycbw42bSbW1U2SUfta-d1cjYDD5PZG6q4JeIy5yYePRKLXTWU78ueprlss2SjHSK3GpVz6g/exec';
+let editCtx = null;
+const CATS = [
+  {key:'사용자', icon:'\uD83D\uDC64', title:'사용자 관리'},
+  {key:'금융기관', icon:'\uD83C\uDFE6', title:'금융기관 관리'},
+  {key:'상품', icon:'\uD83D\uDCE6', title:'상품 관리'},
+  {key:'종목', icon:'\uD83D\uDCC8', title:'종목 관리'}
+];
+
+async function loadSetting() {
+  try {
+    const res = await fetch(GAS+'?action=api&type=labels');
+    const labels = await res.json();
+    renderSetting(labels);
+  } catch(e) {
+    document.getElementById('settingContent').innerHTML =
+      '<div style="padding:20px;text-align:center;color:#e74c3c;font-size:13px">\u274C 데이터 로드 실패: '+e.message+'</div>';
+  }
+}
+
+function renderSetting(labels) {
+  let html = '';
+  CATS.forEach(cat => {
+    const data = labels[cat.key]||{};
+    const entries = Object.entries(data);
+    let items = entries.length===0
+      ? '<div class="empty-msg">\uD83D\uDCEB 항목이 없습니다</div>'
+      : entries.map(([id,name]) =>
+          '<div class="master-item">' +
+          '<span class="master-badge">'+id+'</span>' +
+          '<span class="master-name">'+name+'</span>' +
+          '<button class="btn-edit" onclick="openEdit(''+cat.key+'',''+id+'',''+name.replace(/'/g,"\\'")+'')">' +
+          '수정</button>' +
+          '<button class="btn-delete" onclick="deleteItem(''+cat.key+'',''+id+'',''+name.replace(/'/g,"\\'")+'')">' +
+          '삭제</button></div>'
+        ).join('');
+    html += '<div class="section"><div class="card">' +
+      '<h2>'+cat.icon+' '+cat.title+'</h2>' +
+      '<div id="list_'+cat.key+'">'+items+'</div>' +
+      '<div class="add-row">' +
+      '<input type="text" id="new_'+cat.key+'" placeholder="'+cat.title.replace(' 관리','')+' 이름 입력" ' +
+      'onkeydown="if(event.key==='Enter')addItem(''+cat.key+'')">' +
+      '<button class="btn-add" onclick="addItem(''+cat.key+'')">+ 추가</button>' +
+      '</div></div></div>';
+  });
+  document.getElementById('settingContent').innerHTML = html;
+}
+
+function openEdit(cat, id, name) {
+  editCtx = {cat, id};
+  document.getElementById('modalTitle').textContent = cat+' 수정';
+  document.getElementById('editId').value = id;
+  document.getElementById('editName').value = name;
+  document.getElementById('editModal').classList.add('active');
+  setTimeout(()=>document.getElementById('editName').focus(),100);
+}
+
+function closeModal() {
+  document.getElementById('editModal').classList.remove('active');
+  editCtx = null;
+}
+
+async function saveEdit() {
+  if (!editCtx) return;
+  const name = document.getElementById('editName').value.trim();
+  if (!name) { showToast('\u26A0\uFE0F 이름을 입력해주세요', true); return; }
+  const btn = document.getElementById('btnSave');
+  btn.textContent='\u23F3...'; btn.disabled=true;
+  try {
+    const res = await fetch(GAS, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({action:'update',type:'setting',category:editCtx.cat,id:editCtx.id,name})
+    });
+    const r = await res.json();
+    if (r.result==='success'||r.status==='ok'||r.ok) {
+      showToast('\u2705 수정되었습니다!'); closeModal(); loadSetting();
+    } else { showToast('\u274C 수정 실패: '+(r.message||'오류'), true); }
+  } catch(e) { showToast('\u274C 수정 실패: '+e.message, true); }
+  finally { btn.textContent='저장'; btn.disabled=false; }
+}
+
+async function deleteItem(cat, id, name) {
+  if (!confirm('"'+name+'"을(를) 삭제하시겠습니까?\n\u26A0\uFE0F 관련 데이터가 영향을 받을 수 있습니다.')) return;
+  try {
+    const res = await fetch(GAS, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({action:'delete',type:'setting',category:cat,id})
+    });
+    const r = await res.json();
+    if (r.result==='success'||r.status==='ok'||r.ok) { showToast('\u2705 삭제되었습니다!'); loadSetting(); }
+    else showToast('\u274C 삭제 실패: '+(r.message||'오류'), true);
+  } catch(e) { showToast('\u274C 삭제 실패: '+e.message, true); }
+}
+
+async function addItem(cat) {
+  const input = document.getElementById('new_'+cat);
+  const name = input.value.trim();
+  if (!name) { showToast('\u26A0\uFE0F 이름을 입력해주세요', true); return; }
+  try {
+    const res = await fetch(GAS, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({action:'add',type:'setting',category:cat,name})
+    });
+    const r = await res.json();
+    if (r.result==='success'||r.status==='ok'||r.ok) { showToast('\u2705 추가되었습니다!'); input.value=''; loadSetting(); }
+    else showToast('\u274C 추가 실패: '+(r.message||'오류'), true);
+  } catch(e) { showToast('\u274C 추가 실패: '+e.message, true); }
+}
+
+function showToast(msg, isErr) {
+  const t=document.getElementById('toast');
+  t.textContent=msg; t.style.background=isErr?'#e74c3c':'#1a1f2e';
+  t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),3000);
+}
+
+loadSetting();
+</script>
+</body>
+</html>
