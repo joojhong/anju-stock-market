@@ -102,10 +102,7 @@ nav a .ic { font-size: 21px; }
           <input type="number" id="fPrice" placeholder="0" min="0" oninput="calcTotal()">
         </div>
       </div>
-      <div class="form-group">
-        <label>&#x1F4DD; 메모 (선택)</label>
-        <input type="text" id="fMemo" placeholder="메모 입력 (선택사항)">
-      </div>
+
       <div class="calc-row">
         <div class="calc-label">&#x1F4B5; 거래 금액</div>
         <div class="calc-value" id="calcTotal">&#x20A9;0</div>
@@ -180,7 +177,11 @@ async function loadTradeList() {
   el.innerHTML = '<div class="loading">\u23F3 거래 내역 불러오는 중...</div>';
   try {
     const res = await fetch(GAS+'?action=api&type=trading');
-    const list = await res.json();
+    const text = await res.text();
+    if (!text || text.length === 0 || text.startsWith('<')) {
+      el.innerHTML='<div class="loading">\uD83D\uDCEB \uAC70\uB798 \uB0B4\uC5ED\uC774 \uC5C6\uC2B5\uB2C8\uB2E4</div>'; return;
+    }
+    const list = JSON.parse(text);
     if (!list||list.length===0) { el.innerHTML='<div class="loading">\uD83D\uDCEB 거래 내역이 없습니다</div>'; return; }
     const sorted = [...list].sort((a,b)=>(b['날짜']||'').localeCompare(a['날짜']||''));
     el.innerHTML = sorted.map(t => {
@@ -204,7 +205,6 @@ async function submitTrade() {
     fStock: document.getElementById('fStock').value,
     fQty: document.getElementById('fQty').value,
     fPrice: document.getElementById('fPrice').value,
-    fMemo: document.getElementById('fMemo').value
   };
   if (!v.fDate||!v.fUser||!v.fInst||!v.fProd||!v.fStock||!v.fQty||!v.fPrice) {
     showToast('\u26A0\uFE0F 모든 필수 항목을 입력해주세요', true); return;
@@ -220,15 +220,14 @@ async function submitTrade() {
         '사용자ID': v.fUser, '금융기관ID': v.fInst, '상품ID': v.fProd, '종목코드': v.fStock,
         '거래유형': tradeType,
         '수량': parseInt(v.fQty), '단가': parseInt(v.fPrice),
-        '금액': parseInt(v.fQty)*parseInt(v.fPrice),
-        '메모': v.fMemo
+        '금액': parseInt(v.fQty)*parseInt(v.fPrice)
       })
     });
     const r = await res.json();
     if (r.result==='success'||r.status==='ok'||r.ok) {
       showToast('\u2705 거래가 저장되었습니다!');
       setToday();
-      ['fUser','fInst','fProd','fStock','fQty','fPrice','fMemo'].forEach(id=>{ document.getElementById(id).value=''; });
+      ['fUser','fInst','fProd','fStock','fQty','fPrice'].forEach(id=>{ document.getElementById(id).value=''; }).filter(id => id !== );
       document.getElementById('calcTotal').textContent='\u20A90';
       listLoaded=false;
     } else { showToast('\u274C 저장 실패: '+(r.message||'오류'), true); }
