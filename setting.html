@@ -94,13 +94,26 @@ const CATS = [
 ];
 
 async function loadSetting() {
-  try {
-    const res = await fetch(GAS+'?action=api&type=labels');
-    const labels = await res.json();
-    renderSetting(labels);
-  } catch(e) {
-    document.getElementById('settingContent').innerHTML =
-      '<div style="padding:20px;text-align:center;color:#e74c3c;font-size:13px">\u274C 데이터 로드 실패: '+e.message+'</div>';
+  const el = document.getElementById('settingContent');
+  let retries = 3;
+  while (retries > 0) {
+    try {
+      const ctrl = new AbortController();
+      const tid = setTimeout(()=>ctrl.abort(), 10000);
+      const res = await fetch(GAS+'?action=api&type=labels', {signal: ctrl.signal});
+      clearTimeout(tid);
+      const labels = await res.json();
+      renderSetting(labels);
+      return;
+    } catch(e) {
+      retries--;
+      if (retries > 0) {
+        el.innerHTML = '<div class="loading">\u23F3 재시도 중... ('+retries+'회 남음)</div>';
+        await new Promise(r=>setTimeout(r,3000));
+      } else {
+        el.innerHTML = '<div style="padding:20px;text-align:center;color:#e74c3c;font-size:13px">\u274C 데이터 로드 실패: '+e.message+'<br><br><button onclick="loadSetting()" style="padding:8px 16px;background:#1a1f2e;color:white;border:none;border-radius:8px;cursor:pointer">\uD83D\uDD04 다시 시도</button></div>';
+      }
+    }
   }
 }
 
