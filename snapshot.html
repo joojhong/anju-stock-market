@@ -138,20 +138,33 @@ function fillSel(id, map, ph){
 }
 
 async function loadData(){
-  try {
-    const [lr, sr] = await Promise.all([
-      fetch(GAS+'?action=api&type=labels'),
-      fetch(GAS+'?action=api&type=snapshot')
-    ]);
-    labelsMap = await lr.json();
-    allSnaps = await sr.json();
-    fillSel('snapUser', labelsMap['사용자']||{}, '\uD83D\uDC64 사용자 선택');
-    fillSel('snapInst', labelsMap['금융기관']||{}, '\uD83C\uDFE6 금융기관 선택');
-    fillSel('histUser', labelsMap['사용자']||{}, '\uD83D\uDC65 전체 사용자');
-    fillSel('histInst', labelsMap['금융기관']||{}, '\uD83C\uDFE6 전체 금융기관');
-    populateSnapRows();
-    renderHistory();
-  } catch(e){ showToast('\u274C 데이터 로드 실패: '+e.message, true); }
+  let retries=3;
+  while(retries>0){
+    try {
+      const mkFetch = (url) => {
+        const ctrl=new AbortController();
+        const tid=setTimeout(()=>ctrl.abort(),12000);
+        return fetch(url,{signal:ctrl.signal}).then(r=>{clearTimeout(tid);return r;});
+      };
+      const [lr, sr] = await Promise.all([
+        mkFetch(GAS+'?action=api&type=labels'),
+        mkFetch(GAS+'?action=api&type=snapshot')
+      ]);
+      labelsMap = await lr.json();
+      allSnaps = await sr.json();
+      fillSel('snapUser', labelsMap['사용자']||{}, '👤 사용자 선택');
+      fillSel('snapInst', labelsMap['금융기관']||{}, '🏦 금융기관 선택');
+      fillSel('histUser', labelsMap['사용자']||{}, '👥 전체 사용자');
+      fillSel('histInst', labelsMap['금융기관']||{}, '🏦 전체 금융기관');
+      populateSnapRows();
+      renderHistory();
+      return;
+    } catch(e){
+      retries--;
+      if(retries>0){ await new Promise(r=>setTimeout(r,3000)); }
+      else{ showToast('❌ 데이터 로드 실패: '+e.message+' (잠시 후 직접 페이지를 새로고침해주세요)', true); }
+    }
+  }
 }
 
 function buildOpts(map, sel){
