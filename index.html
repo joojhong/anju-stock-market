@@ -80,7 +80,8 @@ html+='<div class="stat-card"><div class="stat-label">🔄 전일대비율</div>
 html+='</div>';
 html+='<div class="section">📈 보유 종목</div><div class="stock-list">';
 data.종목목록.forEach(function(s){
-html+='<div class="stock-item"><div class="stock-info"><div class="stock-name">'+s.종목명+'</div><div class="stock-price">현재가 ₩'+num(s.현재가)+'</div></div>';
+var qty=s.보유수량?(' | '+s.보유수량+'주'):'';
+html+='<div class="stock-item"><div class="stock-info"><div class="stock-name">'+s.종목명+'</div><div class="stock-price">현재가 ₩'+num(s.현재가)+qty+'</div></div>';
 html+='<div class="stock-vals"><div class="stock-eval">₩'+num(s.평가액)+'</div><div class="stock-rates"><span class="'+cls(s.손익률)+'">'+rate(s.손익률)+'</span> | <span class="'+cls(s.전일대비율)+'">'+rate(s.전일대비율)+'</span></div></div></div>';
 });
 html+='</div>';
