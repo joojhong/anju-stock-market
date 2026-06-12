@@ -187,7 +187,7 @@ function renderSetting(labels) {
         '</div>';
     } else {
       addRow = '<div class="add-row">' +
-        '<input type="text" id="new_' + cat.type + '" placeholder="' + cat.title.replace(' \uAD00\uB9AC', '') + ' \uC774\uB984 \uC785\uB825" onkeydown="if(event.key==='Enter')addItem(\'' + cat.type + '\',\'' + cat.key + '\')">' +
+        '<input type="text" id="new_' + cat.type + '" placeholder="' + cat.title.replace(' \uAD00\uB9AC', '') + ' \uC774\uB984 \uC785\uB825" onkeydown="if(event.key==="Enter")addItem(\'' + cat.type + '\',\'' + cat.key + '\')">' +
         '<button class="btn-add" onclick="addItem(\'' + cat.type + '\',\'' + cat.key + '\')">' +
         '+ \uCD94\uAC00</button>' +
         '</div>';
