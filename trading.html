@@ -31,19 +31,28 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; b
 .calc-value { font-size: 18px; font-weight: 800; color: #1a1f2e; }
 .btn-submit { width: 100%; padding: 14px; background: #1a1f2e; color: white; border: none; border-radius: 10px; font-size: 16px; font-weight: 700; cursor: pointer; }
 .btn-submit:disabled { opacity: 0.6; }
-.trade-item { display: flex; justify-content: space-between; align-items: center; padding: 13px 0; border-bottom: 1px solid #f5f5f5; }
+.filter-row { display: flex; gap: 6px; margin-bottom: 12px; flex-wrap: wrap; align-items: center; }
+.filter-btn { padding: 6px 12px; border: 1.5px solid #ddd; border-radius: 20px; font-size: 12px; font-weight: 600; cursor: pointer; background: white; color: #888; }
+.filter-btn.active { background: #1a1f2e; border-color: #1a1f2e; color: white; }
+.filter-btn.buy-filter.active { background: #fef0f0; border-color: #e74c3c; color: #e74c3c; }
+.filter-btn.sell-filter.active { background: #f0f6ff; border-color: #3498db; color: #3498db; }
+.filter-select { flex: 1; min-width: 100px; padding: 6px 10px; border: 1.5px solid #ddd; border-radius: 8px; font-size: 12px; background: white; color: #333; appearance: none; -webkit-appearance: none; }
+.filter-select:focus { outline: none; border-color: #1a1f2e; }
+.trade-item { display: flex; justify-content: space-between; align-items: flex-start; padding: 13px 0; border-bottom: 1px solid #f5f5f5; }
 .trade-item:last-child { border-bottom: none; }
 .trade-left .trade-stock { font-size: 14px; font-weight: 600; }
 .trade-left .trade-meta { font-size: 11px; color: #aaa; margin-top: 2px; }
 .trade-right { text-align: right; }
 .trade-right .trade-amount { font-size: 15px; font-weight: 700; }
 .trade-right .trade-detail { font-size: 11px; color: #aaa; margin-top: 2px; }
+.trade-done-badge { display: inline-block; font-size: 10px; font-weight: 700; color: #27ae60; background: #e8f8f0; border-radius: 6px; padding: 2px 7px; margin-top: 4px; }
 .up { color: #e74c3c; }
 .down { color: #3498db; }
 .loading { text-align: center; padding: 40px; color: #aaa; font-size: 14px; }
 .err-box { padding: 16px; text-align: center; color: #e74c3c; font-size: 13px; background: #fff0f0; border-radius: 8px; }
 .toast { position: fixed; top: 70px; left: 50%; transform: translateX(-50%); background: #333; color: white; padding: 10px 20px; border-radius: 8px; font-size: 13px; font-weight: 600; z-index: 9999; opacity: 0; transition: opacity 0.3s; pointer-events: none; white-space: nowrap; }
 .toast.show { opacity: 1; }
+.trade-count { font-size: 11px; color: #888; margin-bottom: 8px; }
 nav { position: fixed; bottom: 0; left: 0; width: 100%; background: white; border-top: 1px solid #e8eaed; display: grid; grid-template-columns: repeat(5, 1fr); z-index: 100; }
 nav a { display: flex; flex-direction: column; align-items: center; padding: 9px 0 7px; text-decoration: none; color: #80868b; font-size: 10px; gap: 2px; }
 nav a.active { color: #1a1f2e; font-weight: 700; }
@@ -111,6 +120,24 @@ nav a .ic { font-size: 21px; }
     </div>
 
     <div id="tabList" class="tab-content">
+      <div class="filter-row">
+        <button class="filter-btn active" id="filterAll" onclick="setListFilter('all')">전체</button>
+        <button class="filter-btn buy-filter" id="filterBuy" onclick="setListFilter('매수')">&#x1F534; 매수</button>
+        <button class="filter-btn sell-filter" id="filterSell" onclick="setListFilter('매도')">&#x1F535; 매도</button>
+        <select class="filter-select" id="filterUser" onchange="applyFilters()">
+          <option value="">전체 사용자</option>
+        </select>
+        <select class="filter-select" id="filterInst" onchange="applyFilters()">
+          <option value="">전체 금융기관</option>
+        </select>
+        <select class="filter-select" id="filterProd" onchange="applyFilters()">
+          <option value="">전체 상품</option>
+        </select>
+        <select class="filter-select" id="filterStock" onchange="applyFilters()">
+          <option value="">전체 종목</option>
+        </select>
+      </div>
+      <div class="trade-count" id="tradeCount"></div>
       <div id="tradeListContent"><div class="loading">&#x23F3; 데이터 불러오는 중...</div></div>
     </div>
   </div>
@@ -131,6 +158,8 @@ const GAS = 'https://script.google.com/macros/s/AKfycbw42bSbW1U2SUfta-d1cjYDD5PZ
 let labelsMap = {};
 let tradeType = '매수';
 let listLoaded = false;
+let allTradeList = [];
+let listFilter = 'all';
 
 function num(n) { return Math.round(n).toLocaleString('ko-KR'); }
 
@@ -161,39 +190,101 @@ function fillSel(id, map) {
   });
 }
 
+function fillFilterSel(id, map, placeholder) {
+  const sel = document.getElementById(id);
+  if (!sel) return;
+  sel.innerHTML = '<option value="">' + placeholder + '</option>';
+  Object.entries(map).forEach(([v,l]) => {
+    const o = document.createElement('option');
+    o.value=v; o.textContent=l; sel.appendChild(o);
+  });
+}
+
 async function loadLabels() {
   try {
     const res = await fetch(GAS+'?action=api&type=labels');
-    labelsMap = await res.json();
-    fillSel('fUser', labelsMap['사용자']||{});
-    fillSel('fInst', labelsMap['금융기관']||{});
-    fillSel('fProd', labelsMap['상품']||{});
-    fillSel('fStock', labelsMap['종목']||{});
+    const text = await res.text();
+    if (text && !text.startsWith('<')) {
+      labelsMap = JSON.parse(text);
+    }
   } catch(e) { showToast('레이블 로드 실패: '+e.message, true); }
+  fillSel('fUser', labelsMap['사용자']||{});
+  fillSel('fInst', labelsMap['금융기관']||{});
+  fillSel('fProd', labelsMap['상품']||{});
+  fillSel('fStock', labelsMap['종목']||{});
+  fillFilterSel('filterUser', labelsMap['사용자']||{}, '전체 사용자');
+  fillFilterSel('filterInst', labelsMap['금융기관']||{}, '전체 금융기관');
+  fillFilterSel('filterProd', labelsMap['상품']||{}, '전체 상품');
+  fillFilterSel('filterStock', labelsMap['종목']||{}, '전체 종목');
+}
+
+function setListFilter(type) {
+  listFilter = type;
+  document.getElementById('filterAll').classList.toggle('active', type==='all');
+  document.getElementById('filterBuy').classList.toggle('active', type==='매수');
+  document.getElementById('filterSell').classList.toggle('active', type==='매도');
+  applyFilters();
+}
+
+function applyFilters() {
+  const userF = document.getElementById('filterUser').value;
+  const instF = document.getElementById('filterInst').value;
+  const prodF = document.getElementById('filterProd').value;
+  const stockF = document.getElementById('filterStock').value;
+
+  let filtered = allTradeList.filter(t => {
+    if (listFilter !== 'all' && (t['거래유형']||'') !== listFilter) return false;
+    if (userF && t['사용자ID'] !== userF) return false;
+    if (instF && t['금융기관ID'] !== instF) return false;
+    if (prodF && t['상품ID'] !== prodF) return false;
+    if (stockF && t['종목코드'] !== stockF) return false;
+    return true;
+  });
+
+  renderTradeList(filtered);
+}
+
+function renderTradeList(list) {
+  const el = document.getElementById('tradeListContent');
+  const countEl = document.getElementById('tradeCount');
+
+  if (!list || list.length === 0) {
+    el.innerHTML = '<div class="loading">&#x1F4EB; 거래 내역이 없습니다</div>';
+    if (countEl) countEl.textContent = '';
+    return;
+  }
+
+  if (countEl) countEl.textContent = '총 ' + list.length + '건';
+
+  const sorted = [...list].sort((a,b)=>(b['날짜']||'').localeCompare(a['날짜']||''));
+  el.innerHTML = sorted.map(t => {
+    const isBuy = (t['거래유형']||'')==='매수';
+    const sn = (labelsMap['종목']||{})[t['종목코드']||'']||t['종목코드']||'-';
+    const un = (labelsMap['사용자']||{})[t['사용자ID']||'']||t['사용자ID']||'-';
+    const inn = (labelsMap['금융기관']||{})[t['금융기관ID']||'']||t['금융기관ID']||'-';
+    const pn = (labelsMap['상품']||{})[t['상품ID']||'']||t['상품ID']||'';
+    const qty=t['수량']||0, price=t['단가']||0, amt=t['금액']||(qty*price);
+    const date=(t['날짜']||'').replace(/\//g,'.');
+    const typeLabel = isBuy ? '&#x1F534; 매수' : '&#x1F535; 매도';
+    return '<div class="trade-item"><div class="trade-left"><div class="trade-stock '+(isBuy?'up':'down')+'">'+sn+'</div><div class="trade-meta">'+date+' | '+typeLabel+' | '+un+' | '+inn+(pn?' | '+pn:'')+'</div><div class="trade-done-badge">&#x2705; 거래완료</div></div><div class="trade-right"><div class="trade-amount '+(isBuy?'up':'down')+'">&#x20A9;'+num(amt)+'</div><div class="trade-detail">'+num(qty)+'주 &times; &#x20A9;'+num(price)+'</div></div></div>';
+  }).join('');
 }
 
 async function loadTradeList() {
   const el = document.getElementById('tradeListContent');
-  el.innerHTML = '<div class="loading">\u23F3 거래 내역 불러오는 중...</div>';
+  el.innerHTML = '<div class="loading">&#x23F3; 거래 내역 불러오는 중...</div>';
   try {
     const res = await fetch(GAS+'?action=api&type=trading');
     const text = await res.text();
     if (!text || text.length === 0 || text.startsWith('<')) {
-      el.innerHTML='<div class="loading">\uD83D\uDCEB \uAC70\uB798 \uB0B4\uC5ED\uC774 \uC5C6\uC2B5\uB2C8\uB2E4</div>'; return;
+      allTradeList = [];
+      el.innerHTML='<div class="loading">&#x1F4EB; 거래 내역이 없습니다</div>';
+      return;
     }
     const list = JSON.parse(text);
-    if (!list||list.length===0) { el.innerHTML='<div class="loading">\uD83D\uDCEB 거래 내역이 없습니다</div>'; return; }
-    const sorted = [...list].sort((a,b)=>(b['날짜']||'').localeCompare(a['날짜']||''));
-    el.innerHTML = sorted.map(t => {
-      const isBuy = (t['거래유형']||'')==='매수';
-      const sn = (labelsMap['종목']||{})[t['종목코드']||'']||t['종목코드']||'-';
-      const un = (labelsMap['사용자']||{})[t['사용자ID']||'']||t['사용자ID']||'-';
-      const inn = (labelsMap['금융기관']||{})[t['금융기관ID']||'']||t['금융기관ID']||'-';
-      const qty=t['수량']||0, price=t['단가']||0, amt=t['금액']||(qty*price);
-      const date=(t['날짜']||'').replace(/\//g,'.');
-      return '<div class="trade-item"><div class="trade-left"><div class="trade-stock '+(isBuy?'up':'down')+'">'+sn+'</div><div class="trade-meta">'+date+' | '+un+' | '+inn+'</div></div><div class="trade-right"><div class="trade-amount '+(isBuy?'up':'down')+'">\u20A9'+num(amt)+'</div><div class="trade-detail">'+num(qty)+'\uC8FC \xD7 \u20A9'+num(price)+'</div></div></div>';
-    }).join('');
-  } catch(e) { el.innerHTML='<div class="err-box">\u274C 로드 실패: '+e.message+'</div>'; }
+    allTradeList = list || [];
+    applyFilters();
+  } catch(e) { el.innerHTML='<div class="err-box">&#x274C; 로드 실패: '+e.message+'</div>'; }
 }
 
 async function submitTrade() {
@@ -225,11 +316,11 @@ async function submitTrade() {
     });
     const r = await res.json();
     if (r.result==='success'||r.status==='ok'||r.ok) {
-      showToast('\u2705 거래가 저장되었습니다!');
+      showToast('\u2705 거래완료! 거래가 저장되었습니다.');
       setToday();
-      ['fUser','fInst','fProd','fStock','fQty','fPrice'].forEach(id=>{ document.getElementById(id).value=''; }).filter(id => id !== );
-      document.getElementById('calcTotal').textContent='\u20A90';
-      listLoaded=false;
+      ['fUser','fInst','fProd','fStock','fQty','fPrice'].forEach(id => { document.getElementById(id).value=''; });
+      document.getElementById('calcTotal').textContent='&#x20A9;0';
+      listLoaded=false; allTradeList=[];
     } else { showToast('\u274C 저장 실패: '+(r.message||'오류'), true); }
   } catch(e) { showToast('\u274C 저장 실패: '+e.message, true); }
   finally { btn.textContent='\u2705 거래 저장'; btn.disabled=false; }
