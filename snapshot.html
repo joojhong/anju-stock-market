@@ -168,7 +168,7 @@ function renderCurrentValues() {
   document.getElementById('curTime').textContent = hourVal + '시';
 
   document.getElementById('fCycle').value = cycle;
-  document.getElementById('fDay').value = cycle === '일' ? '' : dayVal;
+  document.getElementById('fDay').value = cycle === '월' ? dayVal : '';
   document.getElementById('fHour').value = hourVal;
   document.getElementById('sourceUrl').value = currentSettings.sourceUrl || DEFAULT_SNAP_SOURCE;
 
