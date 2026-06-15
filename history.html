@@ -126,8 +126,7 @@ sel.innerHTML='<option value="">전체</option>';
 arr.sort().forEach(function(v){
 var o=document.createElement('option');
 o.value=v;
-o.textContent=(labelsMap[type]&&labelsMap[type][v])?labelsMap[type][v]:v;
-sel.appendChild(o);
+callback:function(v){var m=v/1000000;return'sel.appendChild(o);
 });
 }
 function applyFilter(){
@@ -151,7 +150,7 @@ var cHtml='<div class="chart-card"><div class="chart-top"><div><div class="chart
 document.getElementById('chartArea').innerHTML=cHtml;
 if(myChart){myChart.destroy();myChart=null;}
 var ctx=document.getElementById('myChart').getContext('2d');
-myChart=new Chart(ctx,{type:'line',data:{labels:dates,datasets:[{data:vals,borderColor:'#1a1f2e',backgroundColor:'rgba(26,31,46,0.06)',borderWidth:2,pointRadius:dates.length<=30?4:2,pointBackgroundColor:'#1a1f2e',fill:true,tension:0.3}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:function(c){return' ₩'+num(c.raw);}}}},scales:{x:{grid:{display:false},ticks:{maxTicksLimit:8,font:{size:11}}},y:{grid:{color:'#f0f2f5'},ticks:{callback:function(v){return'₩'+num(v);},font:{size:11}}}}}});
+myChart=new Chart(ctx,{type:'line',data:{labels:dates,datasets:[{data:vals,borderColor:'#1a1f2e',backgroundColor:'rgba(26,31,46,0.06)',borderWidth:2,pointRadius:dates.length<=30?4:2,pointBackgroundColor:'#1a1f2e',fill:true,tension:0.3}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:function(c){return' ₩'+num(c.raw);}}}},scales:{x:{grid:{display:false},ticks:{maxTicksLimit:8,font:{size:11},callback:function(v,i,t){var d=dates[i];if(!d)return'';var p=d.split('-');return p[0].slice(2)+'/'+p[1]+'/'+p[2];}}},y:{grid:{color:'#f0f2f5'},ticks:{callback:function(v){var m=v/1000000;return''₩'+(Number.isInteger(m)?m:m.toFixed(1))+'백만';},font:{size:11}}}}}});
 }
 loadLabels(loadSnapshot);
 </script>
