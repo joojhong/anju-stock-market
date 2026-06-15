@@ -225,7 +225,7 @@ function renderSection(container, cat, labels) {
   } else if (cat.dualInput) {
     const codeInp = document.createElement('input');
     codeInp.type = 'text'; codeInp.id = 'new_stock_code';
-    codeInp.placeholder = '한국거래소 종목코드 (예: KRX:379810)';
+    codeInp.placeholder = '거래소 종목코드 (예:  KRX:379810)';
     codeInp.style.flex = '2';
     const nameInp = document.createElement('input');
     nameInp.type = 'text'; nameInp.id = 'new_stock_name';
