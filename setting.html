@@ -24,6 +24,466 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; b
 .add-row input, .add-row select { flex: 1; min-width: 80px; padding: 9px 10px; border: 1.5px solid #ddd; border-radius: 8px; font-size: 13px; background: white; color: #333; }
 .add-row input:focus, .add-row select:focus { outline: none; border-color: #1a1f2e; }
 .btn-add { padding: 9px 14px; background: #1a1f2e; color: white; border: none; border-radius: 8px; font-size: 13px; font-weight: 700; cursor: pointer; white-space: nowrap; }
+.btn-add:disabled { opacity: 0.6; cursor: not-allowed; }
+.empty-msg { text-align: center; padding: 16px; color: #aaa; font-size: 13px; }
+.overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 200; display: none; align-items: center; justify-content: center; padding: 20px; }
+.overlay.active { display: flex; }
+.modal { background: white; border-radius: 16px; padding: 20px; width: 100%; max-width: 380px; }
+.modal h3 { font-size: 16px; font-weight: 700; color: #1a1f2e; margin-bottom: 16px; }
+.modal .fg { margin-bottom: 12px; }
+.modal .fg label { display: block; font-size: 11px; color: #888; font-weight: 600; margin-bottom: 5px; }
+.modal .fg input, .modal .fg select { width: 100%; padding: 10px 12px; border: 1.5px solid #ddd; border-radius: 8px; font-size: 14px; }
+.modal .fg input:focus, .modal .fg select:focus { outline: none; border-color: #1a1f2e; }
+.modal-footer { display: flex; gap: 8px; margin-top: 16px; }
+.modal-footer button { flex: 1; padding: 11px; border: none; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; }
+.btn-cancel { background: #f0f2f5; color: #555; }
+.btn-save-m { background: #1a1f2e; color: white; }
+.btn-save-m:disabled { opacity: 0.6; }
+.toast { position: fixed; top: 70px; left: 50%; transform: translateX(-50%); background: #333; color: white; padding: 10px 20px; border-radius: 8px; font-size: 13px; font-weight: 600; z-index: 9999; opacity: 0; transition: opacity 0.3s; pointer-events: none; white-space: nowrap; }
+.toast.show { opacity: 1; }
+.loading-overlay { position: fixed; inset: 0; background: rgba(255,255,255,0.7); z-index: 300; display: none; align-items: center; justify-content: center; font-size: 16px; font-weight: 700; color: #1a1f2e; }
+.loading-overlay.active { display: flex; }
+nav { position: fixed; bottom: 0; left: 0; width: 100%; background: white; border-top: 1px solid #e8eaed; display: grid; grid-template-columns: repeat(5, 1fr); z-index: 100; }
+nav a { display: flex; flex-direction: column; align-items: center; padding: 9px 0 7px; text-decoration: none; color: #80868b; font-size: 10px; gap: 2px; }
+nav a.active { color: #1a1f2e; font-weight: 700; }
+nav a .ic { font-size: 21px; }
+</style>
+</head>
+<body>
+<div class="header">
+  <h1>&#x2699;&#xFE0F; 설정</h1>
+  <a href="index.html">&#x2190; 홈</a>
+</div>
+
+<div id="settingContent"></div>
+
+<div class="overlay" id="editModal">
+  <div class="modal">
+    <h3 id="modalTitle">항목 수정</h3>
+    <div class="fg">
+      <label>ID</label>
+      <input type="text" id="editId" readonly style="background:#f8f9fa;color:#888;">
+    </div>
+    <div class="fg">
+      <label id="editNameLabel">이름 / 계좌명</label>
+      <input type="text" id="editName" placeholder="이름 입력">
+    </div>
+    <div id="editExtraFields"></div>
+    <div class="modal-footer">
+      <button class="btn-cancel" onclick="closeModal()">취소</button>
+      <button class="btn-save-m" id="btnSaveM" onclick="saveEdit()">저장</button>
+    </div>
+  </div>
+</div>
+
+<div class="loading-overlay" id="loadingOverlay">⏳ 처리 중...</div>
+<div class="toast" id="toast"></div>
+
+<nav>
+  <a href="index.html"><span class="ic">&#x1F4CA;</span>통계</a>
+  <a href="trading.html"><span class="ic">&#x270F;&#xFE0F;</span>거래입력</a>
+  <a href="history.html"><span class="ic">&#x1F4C8;</span>히스토리</a>
+  <a href="setting.html" class="active"><span class="ic">&#x2699;&#xFE0F;</span>설정</a>
+  <a href="snapshot.html"><span class="ic">&#x1F4F7;</span>스냅샷</a>
+</nav>
+
+<script>
+const GAS = 'https://script.google.com/macros/s/AKfycbw42bSbW1U2SUfta-d1cjYDD5PZG6q4Jely5yYePRKLXTWU78ueprIss2SjHSK3GpVz6g/exec';
+let editCtx = null;
+let labelsMap = {};
+
+// 카테고리 설정 (prefix: ID 접두어, key: labelsMap 키)
+const CATS = [
+  {key:'사용자',   icon:'👤', title:'사용자 관리',   type:'user',        prefix:'A'},
+  {key:'금융기관', icon:'🏦', title:'금융기관 관리', type:'institution', prefix:'B'},
+  {key:'상품',     icon:'📦', title:'상품 관리',     type:'product',    prefix:'D'},
+  {key:'계좌',     icon:'🏷️', title:'계좌 관리',    type:'account',    prefix:'C', special:true},
+  {key:'종목',     icon:'📈', title:'종목 관리',     type:'stock',      prefix:null, dualInput:true}
+];
+
+function showToast(msg, isErr) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.style.background = isErr ? '#e74c3c' : '#1a1f2e';
+  t.classList.add('show'); setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+function setLoading(on) {
+  document.getElementById('loadingOverlay').classList.toggle('active', on);
+}
+
+function makeOpts(map, selVal) {
+  return Object.entries(map).map(([v,l]) => {
+    const o = document.createElement('option');
+    o.value = v; o.textContent = l;
+    if (v === selVal) o.selected = true;
+    return o;
+  });
+}
+
+// 다음 ID 생성 (기존 코드 체계 유지)
+function nextId(prefix, existingIds) {
+  let maxNum = 0;
+  for (const id of existingIds) {
+    if (id && String(id).startsWith(prefix)) {
+      const num = parseInt(String(id).substring(prefix.length));
+      if (!isNaN(num)) maxNum = Math.max(maxNum, num);
+    }
+  }
+  return prefix + String(maxNum + 1).padStart(3, '0');
+}
+
+function renderSection(container, cat, labels) {
+  const section = document.createElement('div');
+  section.className = 'section';
+  const card = document.createElement('div');
+  card.className = 'card';
+
+  const h2 = document.createElement('h2');
+  h2.textContent = cat.icon + ' ' + cat.title;
+  card.appendChild(h2);
+
+  const listDiv = document.createElement('div');
+  listDiv.id = 'list_' + cat.type;
+
+  let entries = [];
+  if (cat.special) {
+    const acctData = labels['계좌'] || {};
+    entries = Object.entries(acctData).map(([id, v]) => {
+      const uName = (labels['사용자'] || {})[v.user] || v.user || '';
+      const bName = (labels['금융기관'] || {})[v.bank] || v.bank || '';
+      const pName = (labels['상품'] || {})[v.product] || v.product || '';
+      return {id, name: v.name || id, sub: uName + ' / ' + bName + ' / ' + pName};
+    });
+  } else {
+    entries = Object.entries(labels[cat.key] || {}).map(([id, name]) => ({id, name, sub: null}));
+  }
+
+  if (entries.length === 0) {
+    const empty = document.createElement('div');
+    empty.className = 'empty-msg'; empty.textContent = '📭 항목이 없습니다';
+    listDiv.appendChild(empty);
+  } else {
+    entries.forEach(({id, name, sub}) => {
+      const item = document.createElement('div');
+      item.className = 'master-item';
+      const badge = document.createElement('span');
+      badge.className = 'master-badge'; badge.textContent = id;
+      const info = document.createElement('div');
+      info.style.flex = '1';
+      const nameSpan = document.createElement('div');
+      nameSpan.className = 'master-name'; nameSpan.textContent = name;
+      info.appendChild(nameSpan);
+      if (sub) {
+        const subSpan = document.createElement('div');
+        subSpan.className = 'master-sub'; subSpan.textContent = sub;
+        info.appendChild(subSpan);
+      }
+      const editBtn = document.createElement('button');
+      editBtn.className = 'btn-edit'; editBtn.textContent = '수정';
+      editBtn.addEventListener('click', () => openEdit(cat.type, id, name));
+      const delBtn = document.createElement('button');
+      delBtn.className = 'btn-delete'; delBtn.textContent = '삭제';
+      delBtn.addEventListener('click', () => deleteItem(cat.type, id, name));
+      item.appendChild(badge); item.appendChild(info);
+      item.appendChild(editBtn); item.appendChild(delBtn);
+      listDiv.appendChild(item);
+    });
+  }
+  card.appendChild(listDiv);
+
+  // Add row
+  const addRow = document.createElement('div');
+  addRow.className = 'add-row';
+
+  if (cat.special) {
+    const uSel = document.createElement('select'); uSel.id = 'new_acct_user';
+    const uOpt0 = document.createElement('option'); uOpt0.value = ''; uOpt0.textContent = '사용자';
+    uSel.appendChild(uOpt0);
+    makeOpts(labels['사용자'] || {}, '').forEach(o => uSel.appendChild(o));
+    const bSel = document.createElement('select'); bSel.id = 'new_acct_bank';
+    const bOpt0 = document.createElement('option'); bOpt0.value = ''; bOpt0.textContent = '금융기관';
+    bSel.appendChild(bOpt0);
+    makeOpts(labels['금융기관'] || {}, '').forEach(o => bSel.appendChild(o));
+    const pSel = document.createElement('select'); pSel.id = 'new_acct_prod';
+    const pOpt0 = document.createElement('option'); pOpt0.value = ''; pOpt0.textContent = '상품';
+    pSel.appendChild(pOpt0);
+    makeOpts(labels['상품'] || {}, '').forEach(o => pSel.appendChild(o));
+    const addBtn = document.createElement('button');
+    addBtn.className = 'btn-add'; addBtn.textContent = '+ 추가';
+    addBtn.addEventListener('click', addAccount);
+    addRow.appendChild(uSel); addRow.appendChild(bSel);
+    addRow.appendChild(pSel); addRow.appendChild(addBtn);
+  } else if (cat.dualInput) {
+    const codeInp = document.createElement('input');
+    codeInp.type = 'text'; codeInp.id = 'new_stock_code';
+    codeInp.placeholder = '한국거래소 종목코드 (예: KRX:379810)';
+    codeInp.style.flex = '2';
+    const nameInp = document.createElement('input');
+    nameInp.type = 'text'; nameInp.id = 'new_stock_name';
+    nameInp.placeholder = '종목명 (예: KODEX 미국나스닥100)';
+    nameInp.style.flex = '2';
+    const addBtn = document.createElement('button');
+    addBtn.className = 'btn-add'; addBtn.textContent = '+ 추가';
+    addBtn.addEventListener('click', () => addStockItem(addBtn));
+    codeInp.addEventListener('keydown', e => { if (e.key === 'Enter') addStockItem(addBtn); });
+    nameInp.addEventListener('keydown', e => { if (e.key === 'Enter') addStockItem(addBtn); });
+    addRow.appendChild(codeInp); addRow.appendChild(nameInp); addRow.appendChild(addBtn);
+  } else {
+    const inp = document.createElement('input');
+    inp.type = 'text'; inp.id = 'new_' + cat.type;
+    inp.placeholder = cat.title.replace(' 관리', '') + ' 이름 입력';
+    const addBtn = document.createElement('button');
+    addBtn.className = 'btn-add'; addBtn.textContent = '+ 추가';
+    const doAdd = () => addItem(cat.type, cat.key, cat.prefix, addBtn);
+    addBtn.addEventListener('click', doAdd);
+    inp.addEventListener('keydown', e => { if (e.key === 'Enter') doAdd(); });
+    addRow.appendChild(inp); addRow.appendChild(addBtn);
+  }
+
+  card.appendChild(addRow);
+  section.appendChild(card);
+  container.appendChild(section);
+}
+
+function renderSetting(labels) {
+  const container = document.getElementById('settingContent');
+  container.innerHTML = '';
+  CATS.forEach(cat => renderSection(container, cat, labels));
+}
+
+async function loadLabels() {
+  // 캐시된 초기 데이터로 빠르게 렌더링
+  const CACHED = {
+    '사용자': {A001:'주재홍', A002:'안소영'},
+    '금융기관': {B001:'국민은행', B002:'삼성증권', B003:'경남은행', B004:'하나은행'},
+    '상품': {D001:'연금저축', D002:'도민 IRP', D003:'퇴직연금DC', D004:'IRP', D005:'ISA'},
+    '계좌': {
+      C001:{name:'주재홍 국민은행 퇴직연금DC', user:'A001', bank:'B001', product:'D003'},
+      C002:{name:'주재홍 삼성증권 연금저축', user:'A001', bank:'B002', product:'D001'},
+      C003:{name:'주재홍 경남은행 도민 IRP', user:'A001', bank:'B003', product:'D002'},
+      C004:{name:'안소영 경남은행 도민 IRP', user:'A002', bank:'B003', product:'D002'},
+      C005:{name:'안소영 하나은행 퇴직연금DC', user:'A002', bank:'B004', product:'D003'}
+    },
+    '종목': {'KRX:379810':'KODEX 미국나스닥100','KRX:379800':'KODEX 미국S&P500','KRX:438100':'ACE 미국나스닥100미국채혼합50액티브','KRX:438080':'ACE 미국S&P500미국채혼합50액티브','KRX:0137V0':'KIWOOM 미국S&P500모멘텀','KRX:0069M0':'1Q 미국나스닥100'}
+  };
+  labelsMap = JSON.parse(JSON.stringify(CACHED));
+  renderSetting(labelsMap);
+
+  // 서버에서 최신 데이터 로드
+  try {
+    const ctrl = new AbortController();
+    setTimeout(() => ctrl.abort(), 15000);
+    const res = await fetch(GAS + '?action=api&type=labels', {signal: ctrl.signal});
+    const text = await res.text();
+    if (text && text.length > 0 && !text.startsWith('<')) {
+      const fresh = JSON.parse(text);
+      if (fresh) {
+        // 서버 데이터로 업데이트 (계좌는 구조 변환 필요)
+        labelsMap['사용자'] = fresh['사용자'] || labelsMap['사용자'];
+        labelsMap['금융기관'] = fresh['금융기관'] || labelsMap['금융기관'];
+        labelsMap['상품'] = fresh['상품'] || labelsMap['상품'];
+        labelsMap['종목'] = fresh['종목'] || labelsMap['종목'];
+        // 계좌는 캐시 유지 (getLabels가 계좌 구조 미반환시)
+        if (fresh['계좌']) labelsMap['계좌'] = fresh['계좌'];
+        renderSetting(labelsMap);
+      }
+    }
+  } catch(e) { /* 캐시 사용 */ }
+}
+
+function openEdit(type, id, name) {
+  editCtx = {type, id};
+  document.getElementById('modalTitle').textContent = type === 'account' ? '계좌 수정' : type === 'stock' ? '종목 수정' : '항목 수정';
+  document.getElementById('editId').value = id;
+  document.getElementById('editName').value = name;
+  document.getElementById('editNameLabel').textContent = type === 'account' ? '계좌명' : type === 'stock' ? '종목명' : '이름';
+
+  const extra = document.getElementById('editExtraFields');
+  extra.innerHTML = '';
+
+  if (type === 'account') {
+    const acc = (labelsMap['계좌'] || {})[id] || {};
+    ['사용자|editUser|user', '금융기관|editBank|bank', '상품|editProd|product'].forEach(item => {
+      const [label, elId, field] = item.split('|');
+      const fg = document.createElement('div'); fg.className = 'fg';
+      const lbl = document.createElement('label'); lbl.textContent = label;
+      const sel = document.createElement('select'); sel.id = elId;
+      const opt0 = document.createElement('option'); opt0.value = ''; opt0.textContent = '선택';
+      sel.appendChild(opt0);
+      makeOpts(labelsMap[label] || {}, acc[field] || '').forEach(o => sel.appendChild(o));
+      fg.appendChild(lbl); fg.appendChild(sel);
+      extra.appendChild(fg);
+    });
+  }
+
+  document.getElementById('editModal').classList.add('active');
+  setTimeout(() => document.getElementById('editName').focus(), 100);
+}
+
+function closeModal() {
+  document.getElementById('editModal').classList.remove('active');
+  editCtx = null;
+}
+
+async function saveEdit() {
+  if (!editCtx) return;
+  const name = document.getElementById('editName').value.trim();
+  if (!name) { showToast('⚠️ 이름을 입력해주세요', true); return; }
+  const btn = document.getElementById('btnSaveM');
+  btn.textContent = '⏳...'; btn.disabled = true;
+
+  const payload = {action:'update', type:'setting', category:editCtx.type, id:editCtx.id, name};
+  if (editCtx.type === 'account') {
+    payload.user = (document.getElementById('editUser') || {}).value || '';
+    payload.bank = (document.getElementById('editBank') || {}).value || '';
+    payload.product = (document.getElementById('editProd') || {}).value || '';
+  }
+
+  try {
+    const res = await fetch(GAS, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload)});
+    const r = await res.json();
+    if (r.result === 'success' || r.status === 'ok') {
+      // 서버 성공 후 로컬 반영
+      const cat = CATS.find(c => c.type === editCtx.type);
+      if (editCtx.type === 'account') {
+        if (!labelsMap['계좌']) labelsMap['계좌'] = {};
+        const acc = labelsMap['계좌'][editCtx.id] || {};
+        labelsMap['계좌'][editCtx.id] = {name, user: payload.user||acc.user, bank: payload.bank||acc.bank, product: payload.product||acc.product};
+      } else if (cat && labelsMap[cat.key]) {
+        labelsMap[cat.key][editCtx.id] = name;
+      }
+      showToast('✅ 수정되었습니다!'); closeModal(); renderSetting(labelsMap);
+    } else {
+      showToast('❌ 수정 실패: ' + (r.message || '서버 오류'), true);
+    }
+  } catch(e) { showToast('❌ 수정 실패: ' + e.message, true); }
+  finally { btn.textContent = '저장'; btn.disabled = false; }
+}
+
+async function deleteItem(type, id, name) {
+  if (!confirm('"' + name + '"을(를) 삭제하시겠습니까?')) return;
+  setLoading(true);
+  try {
+    const res = await fetch(GAS, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({action:'delete', type:'setting', category:type, id})});
+    const r = await res.json();
+    if (r.result === 'success' || r.status === 'ok') {
+      // 서버 성공 후 로컬 반영
+      const cat = CATS.find(c => c.type === type);
+      if (type === 'account') { if (labelsMap['계좌']) delete labelsMap['계좌'][id]; }
+      else if (cat && labelsMap[cat.key]) delete labelsMap[cat.key][id];
+      showToast('✅ 삭제되었습니다!'); renderSetting(labelsMap);
+    } else { showToast('❌ 삭제 실패: ' + (r.message || '서버 오류'), true); }
+  } catch(e) { showToast('❌ 삭제 실패: ' + e.message, true); }
+  finally { setLoading(false); }
+}
+
+async function addItem(type, key, prefix, btn) {
+  const inp = document.getElementById('new_' + type);
+  if (!inp) return;
+  const name = inp.value.trim();
+  if (!name) { showToast('⚠️ 이름을 입력해주세요', true); return; }
+
+  btn.textContent = '⏳...'; btn.disabled = true;
+  setLoading(true);
+
+  try {
+    const res = await fetch(GAS, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({action:'add', type:'setting', category:type, name})});
+    const r = await res.json();
+    if (r.result === 'success' || r.status === 'ok') {
+      // 서버가 반환한 ID 사용, 없으면 기존 코드체계에 맞게 생성
+      const newId = r.id || nextId(prefix, Object.keys(labelsMap[key] || {}));
+      if (!labelsMap[key]) labelsMap[key] = {};
+      labelsMap[key][newId] = name;
+      showToast('✅ 추가되었습니다! (ID: ' + newId + ')');
+      inp.value = ''; renderSetting(labelsMap);
+    } else { showToast('❌ 추가 실패: ' + (r.message || '서버 오류'), true); }
+  } catch(e) { showToast('❌ 네트워크 오류: ' + e.message, true); }
+  finally { btn.textContent = '+ 추가'; btn.disabled = false; setLoading(false); }
+}
+
+async function addStockItem(btn) {
+  const codeInp = document.getElementById('new_stock_code');
+  const nameInp = document.getElementById('new_stock_name');
+  if (!codeInp || !nameInp) return;
+  const code = codeInp.value.trim();
+  const name = nameInp.value.trim();
+  if (!code) { showToast('⚠️ 종목코드를 입력해주세요', true); return; }
+  if (!name) { showToast('⚠️ 종목명을 입력해주세요', true); return; }
+
+  btn.textContent = '⏳...'; btn.disabled = true;
+  setLoading(true);
+
+  try {
+    const res = await fetch(GAS, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({action:'add', type:'setting', category:'stock', id:code, name})});
+    const r = await res.json();
+    if (r.result === 'success' || r.status === 'ok') {
+      if (!labelsMap['종목']) labelsMap['종목'] = {};
+      labelsMap['종목'][code] = name;
+      showToast('✅ 종목이 추가되었습니다!');
+      codeInp.value = ''; nameInp.value = ''; renderSetting(labelsMap);
+    } else { showToast('❌ 추가 실패: ' + (r.message || '서버 오류'), true); }
+  } catch(e) { showToast('❌ 네트워크 오류: ' + e.message, true); }
+  finally { btn.textContent = '+ 추가'; btn.disabled = false; setLoading(false); }
+}
+
+async function addAccount() {
+  const user = (document.getElementById('new_acct_user') || {}).value || '';
+  const bank = (document.getElementById('new_acct_bank') || {}).value || '';
+  const prod = (document.getElementById('new_acct_prod') || {}).value || '';
+  if (!user || !bank || !prod) { showToast('⚠️ 사용자, 금융기관, 상품을 모두 선택해주세요', true); return; }
+
+  const uName = (labelsMap['사용자'] || {})[user] || user;
+  const bName = (labelsMap['금융기관'] || {})[bank] || bank;
+  const pName = (labelsMap['상품'] || {})[prod] || prod;
+  const name = uName + ' ' + bName + ' ' + pName;
+
+  const btn = document.getElementById('new_acct_user')?.closest('.add-row')?.querySelector('.btn-add');
+  if (btn) { btn.textContent = '⏳...'; btn.disabled = true; }
+  setLoading(true);
+
+  try {
+    const res = await fetch(GAS, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({action:'add', type:'setting', category:'account', name, user, bank, product:prod})});
+    const r = await res.json();
+    if (r.result === 'success' || r.status === 'ok') {
+      // 서버가 반환한 ID 사용, 없으면 C### 체계로 생성
+      const newId = r.id || nextId('C', Object.keys(labelsMap['계좌'] || {}));
+      if (!labelsMap['계좌']) labelsMap['계좌'] = {};
+      labelsMap['계좌'][newId] = {name, user, bank, product:prod};
+      showToast('✅ 계좌가 추가되었습니다! (ID: ' + newId + ')'); renderSetting(labelsMap);
+    } else { showToast('❌ 추가 실패: ' + (r.message || '서버 오류'), true); }
+  } catch(e) { showToast('❌ 네트워크 오류: ' + e.message, true); }
+  finally { if (btn) { btn.textContent = '+ 추가'; btn.disabled = false; } setLoading(false); }
+}
+
+loadLabels();
+</script>
+</body>
+</html><!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>설정 - 안주주식마켓</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #f0f2f5; color: #333; padding-bottom: 72px; }
+.header { background: #1a1f2e; color: white; padding: 16px 20px; display: flex; align-items: center; gap: 10px; position: sticky; top: 0; z-index: 100; }
+.header h1 { font-size: 18px; font-weight: 700; flex: 1; }
+.header a { color: rgba(255,255,255,0.65); font-size: 13px; text-decoration: none; padding: 4px 8px; border-radius: 6px; background: rgba(255,255,255,0.1); }
+.section { padding: 14px 16px 4px; }
+.card { background: white; border-radius: 14px; padding: 16px; box-shadow: 0 1px 4px rgba(0,0,0,.08); margin-bottom: 12px; }
+.card h2 { font-size: 14px; font-weight: 700; color: #1a1f2e; margin-bottom: 12px; }
+.master-item { display: flex; align-items: center; padding: 10px 0; border-bottom: 1px solid #f5f5f5; gap: 8px; }
+.master-item:last-child { border-bottom: none; }
+.master-badge { font-size: 11px; font-weight: 700; color: #6c63ff; background: #f0efff; padding: 3px 8px; border-radius: 6px; white-space: nowrap; min-width: 52px; text-align: center; }
+.master-name { flex: 1; font-size: 14px; font-weight: 600; }
+.master-sub { font-size: 11px; color: #aaa; margin-top: 2px; }
+.btn-edit { padding: 5px 10px; background: #f0f2f5; border: none; border-radius: 6px; font-size: 12px; cursor: pointer; color: #555; }
+.btn-delete { padding: 5px 10px; background: #fff0f0; border: none; border-radius: 6px; font-size: 12px; cursor: pointer; color: #e74c3c; }
+.add-row { display: flex; gap: 8px; margin-top: 12px; padding-top: 12px; border-top: 1px solid #f0f2f5; flex-wrap: wrap; }
+.add-row input, .add-row select { flex: 1; min-width: 80px; padding: 9px 10px; border: 1.5px solid #ddd; border-radius: 8px; font-size: 13px; background: white; color: #333; }
+.add-row input:focus, .add-row select:focus { outline: none; border-color: #1a1f2e; }
+.btn-add { padding: 9px 14px; background: #1a1f2e; color: white; border: none; border-radius: 8px; font-size: 13px; font-weight: 700; cursor: pointer; white-space: nowrap; }
 .empty-msg { text-align: center; padding: 16px; color: #aaa; font-size: 13px; }
 .overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 200; display: none; align-items: center; justify-content: center; padding: 20px; }
 .overlay.active { display: flex; }
