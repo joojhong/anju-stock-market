@@ -181,21 +181,37 @@ async function loadSettings() {
     const text = await res.text();
     if (text && !text.startsWith('<')) {
       const data = JSON.parse(text);
-      if (data) {
+      if (data && !data.error && (data.day !== undefined || data.cycle !== undefined)) {
         currentSettings = {
           day: data.day || '1',
           cycle: data.cycle || '월',
           hour: data.hour !== undefined ? data.hour : 7,
           sourceUrl: data.sourceUrl || DEFAULT_SNAP_SOURCE
         };
+        localStorage.setItem('snapshotSettings', JSON.stringify(currentSettings));
+        renderCurrentValues();
+        return;
       }
     }
   } catch(e) {
-    // Use defaults
+    // fall through to localStorage
   }
+  try {
+    const saved = localStorage.getItem('snapshotSettings');
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      if (parsed) {
+        currentSettings = {
+          day: parsed.day || '1',
+          cycle: parsed.cycle || '월',
+          hour: parsed.hour !== undefined ? parsed.hour : 7,
+          sourceUrl: parsed.sourceUrl || DEFAULT_SNAP_SOURCE
+        };
+      }
+    }
+  } catch(e2) { /* use defaults */ }
   renderCurrentValues();
 }
-
 async function saveSetting() {
   const cycle = document.getElementById('fCycle').value;
   const dayRaw = document.getElementById('fDay').value.trim();
@@ -234,17 +250,20 @@ async function saveSetting() {
     const r = await res.json();
     if (r.result === 'success' || r.status === 'ok' || r.ok) {
       currentSettings = { ...currentSettings, day, cycle, hour };
+        localStorage.setItem('snapshotSettings', JSON.stringify(currentSettings));
       renderCurrentValues();
       showToast('✅ 자동 스냅샷 설정이 저장되었습니다!');
       setTimeout(() => location.reload(true), 1500);
     } else {
       currentSettings = { ...currentSettings, day, cycle, hour };
+        localStorage.setItem('snapshotSettings', JSON.stringify(currentSettings));
       renderCurrentValues();
       showToast('✅ 설정값이 변경되었습니다');
       setTimeout(() => location.reload(true), 1500);
     }
   } catch(e) {
     currentSettings = { ...currentSettings, day, cycle, hour };
+        localStorage.setItem('snapshotSettings', JSON.stringify(currentSettings));
     renderCurrentValues();
     showToast('✅ 설정값이 변경되었습니다');
   } finally {
