@@ -228,7 +228,7 @@ async function saveSetting() {
   try {
     const res = await fetch(GAS, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'text/plain' },
       body: JSON.stringify({ action: 'update', type: 'snapshot_config', day, cycle, hour })
     });
     const r = await res.json();
@@ -257,7 +257,7 @@ async function saveSourceUrl() {
   try {
     const res = await fetch(GAS, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'text/plain' },
       body: JSON.stringify({ action: 'update', type: 'snapshot_source', sourceUrl })
     });
     const r = await res.json();
@@ -271,245 +271,27 @@ async function saveSourceUrl() {
 
 async function takeManualSnapshot() {
   const btn = document.getElementById('btnManual');
-  btn.textContent = '⏳ 스냅샷 저장 중...'; btn.disabled = true;
-
+  btn.textContent = '⏳ 저장 중...'; btn.disabled = true;
   const d = new Date();
   const dateStr = d.getFullYear() + '/' + String(d.getMonth()+1).padStart(2,'0') + '/' + String(d.getDate()).padStart(2,'0');
-  const sourceUrl = currentSettings.sourceUrl || DEFAULT_SNAP_SOURCE;
-
-  try {
-    // Call the snapshot source URL
-    const res = await fetch(sourceUrl + (sourceUrl.includes('?') ? '&' : '?') + 'date=' + encodeURIComponent(dateStr));
-    const text = await res.text();
-    let success = false;
-    if (text && !text.startsWith('<')) {
-      try {
-        const r = JSON.parse(text);
-        success = r.result === 'success' || r.status === 'ok' || r.ok;
-      } catch { success = res.ok; }
-    } else { success = res.ok; }
-
-    if (success) {
-      showToast('✅ 수동 스냅샷 저장 완료 (' + dateStr + ')');
-    } else {
-      // Also try via GAS directly
-      const res2 = await fetch(GAS, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'snapshot', date: dateStr, sourceUrl })
-      });
-      const r2 = await res2.json();
-      if (r2.result === 'success' || r2.status === 'ok' || r2.ok) {
-        showToast('✅ 수동 스냅샷 저장 완료 (' + dateStr + ')');
-      } else {
-        showToast('✅ 수동 스냅샷 저장 완료 (' + dateStr + ')');
-      }
-    }
-  } catch(e) {
-    // Try direct GAS call as fallback
-    try {
-      await fetch(GAS, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'snapshot', date: dateStr })
-      });
-    } catch {}
-    showToast('✅ 수동 스냅샷 저장 완료 (' + dateStr + ')');
-  } finally {
-    btn.textContent = '▶️ 지금 스냅샷 저장'; btn.disabled = false;
-  }
-}
-
-loadSettings();
-</script>
-</body>
-</html><!DOCTYPE html>
-<html lang="ko">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>스냅샷 - 안주주식마켓</title>
-<style>
-* { margin: 0; padding: 0; box-sizing: border-box; }
-body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #f0f2f5; color: #333; padding-bottom: 72px; }
-.header { background: #1a1f2e; color: white; padding: 16px 20px; display: flex; align-items: center; gap: 10px; position: sticky; top: 0; z-index: 100; }
-.header h1 { font-size: 18px; font-weight: 700; flex: 1; }
-.header a { color: rgba(255,255,255,0.65); font-size: 13px; text-decoration: none; padding: 4px 8px; border-radius: 6px; background: rgba(255,255,255,0.1); }
-.section { padding: 14px 16px; }
-.card { background: white; border-radius: 14px; padding: 16px; box-shadow: 0 1px 4px rgba(0,0,0,.08); margin-bottom: 12px; }
-.card-title { font-size: 14px; font-weight: 700; color: #1a1f2e; margin-bottom: 4px; }
-.card-sub { font-size: 11px; color: #888; margin-bottom: 16px; }
-.form-group { margin-bottom: 16px; }
-.form-group label { display: block; font-size: 11px; color: #888; font-weight: 600; margin-bottom: 6px; }
-.form-group input, .form-group select { width: 100%; padding: 11px 13px; border: 1.5px solid #ddd; border-radius: 8px; font-size: 15px; background: white; color: #333; appearance: none; -webkit-appearance: none; }
-.form-group input:focus, .form-group select:focus { outline: none; border-color: #1a1f2e; }
-.form-group .helper { font-size: 11px; color: #aaa; margin-top: 4px; }
-.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-.source-box { background: #f8f9fa; border-radius: 8px; padding: 12px; font-size: 12px; color: #555; word-break: break-all; line-height: 1.5; border: 1px solid #e8eaed; }
-.source-label { font-size: 11px; color: #888; font-weight: 600; margin-bottom: 6px; }
-.btn-submit { width: 100%; padding: 14px; background: #1a1f2e; color: white; border: none; border-radius: 10px; font-size: 16px; font-weight: 700; cursor: pointer; margin-top: 4px; }
-.btn-submit:disabled { opacity: 0.6; }
-.info-badge { display: inline-flex; align-items: center; gap: 4px; padding: 4px 10px; background: #f0efff; color: #6c63ff; border-radius: 10px; font-size: 11px; font-weight: 600; margin-bottom: 12px; }
-.current-values { margin-top: 14px; }
-.val-row { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid #f5f5f5; }
-.val-row:last-child { border-bottom: none; }
-.val-label { font-size: 13px; color: #555; }
-.val-value { font-size: 14px; font-weight: 700; color: #1a1f2e; }
-.badge-active { display: inline-block; padding: 2px 8px; background: #e6f7ee; color: #27ae60; border-radius: 8px; font-size: 11px; font-weight: 600; }
-.toast { position: fixed; top: 70px; left: 50%; transform: translateX(-50%); background: #333; color: white; padding: 10px 20px; border-radius: 8px; font-size: 13px; font-weight: 600; z-index: 9999; opacity: 0; transition: opacity 0.3s; pointer-events: none; white-space: nowrap; }
-.toast.show { opacity: 1; }
-nav { position: fixed; bottom: 0; left: 0; width: 100%; background: white; border-top: 1px solid #e8eaed; display: grid; grid-template-columns: repeat(5, 1fr); z-index: 100; }
-nav a { display: flex; flex-direction: column; align-items: center; padding: 9px 0 7px; text-decoration: none; color: #80868b; font-size: 10px; gap: 2px; }
-nav a.active { color: #1a1f2e; font-weight: 700; }
-nav a .ic { font-size: 21px; }
-</style>
-</head>
-<body>
-<div class="header">
-  <h1>&#x1F4F7; 스냅샷 설정</h1>
-  <a href="index.html">&#x2190; 홈</a>
-</div>
-
-<div class="section">
-  <!-- 현재 설정값 요약 -->
-  <div class="card">
-    <div class="card-title">&#x1F4CA; 현재 스냅샷 설정</div>
-    <div class="card-sub">자동 스냅샷 저장 스케줄을 관리합니다</div>
-    <div class="info-badge">&#x2705; 활성화됨</div>
-    <div class="current-values" id="currentValues">
-      <div class="val-row"><span class="val-label">&#x1F4C5; 자동 저장일</span><span class="val-value" id="curDay">-</span></div>
-      <div class="val-row"><span class="val-label">&#x1F504; 반복 주기</span><span class="val-value" id="curCycle">-</span></div>
-      <div class="val-row"><span class="val-label">&#x23F0; 저장 시간</span><span class="val-value" id="curTime">-</span></div>
-    </div>
-  </div>
-
-  <!-- 설정 편집 -->
-  <div class="card">
-    <div class="card-title">&#x270F;&#xFE0F; 스냅샷 설정 변경</div>
-    <div class="card-sub">변경 후 저장 버튼을 눌러주세요</div>
-
-    <div class="form-row">
-      <div class="form-group">
-        <label>&#x1F4C5; 스냅샷_자동저장일</label>
-        <input type="number" id="fDay" min="1" max="31" placeholder="예: 1">
-        <div class="helper">매월 몇 일에 저장할지 입력 (1~31)</div>
-      </div>
-      <div class="form-group">
-        <label>&#x23F0; 스냅샷_저장시간</label>
-        <input type="number" id="fHour" min="0" max="23" placeholder="예: 7">
-        <div class="helper">저장할 시각 (0~23시)</div>
-      </div>
-    </div>
-
-    <div class="form-group">
-      <label>&#x1F504; 스냅샷_반복주기</label>
-      <select id="fCycle">
-        <option value="">선택</option>
-        <option value="일">일 (매일)</option>
-        <option value="주">주 (매주)</option>
-        <option value="월">월 (매월)</option>
-        <option value="분기">분기 (3개월마다)</option>
-        <option value="반기">반기 (6개월마다)</option>
-        <option value="연">연 (매년)</option>
-      </select>
-    </div>
-
-    <button class="btn-submit" id="btnSave" onclick="saveSetting()">&#x1F4BE; 설정 저장</button>
-  </div>
-
-  <!-- 스냅샷 저장 소스 -->
-  <div class="card">
-    <div class="card-title">&#x1F517; 스냅샷 저장소스</div>
-    <div class="card-sub">자동 스냅샷 수집에 사용되는 API 엔드포인트</div>
-    <div class="source-label">GAS API URL</div>
-    <div class="source-box" id="sourceUrl">&#x23F3; 불러오는 중...</div>
-  </div>
-</div>
-
-<div class="toast" id="toast"></div>
-
-<nav>
-  <a href="index.html"><span class="ic">&#x1F4CA;</span>통계</a>
-  <a href="trading.html"><span class="ic">&#x270F;&#xFE0F;</span>거래입력</a>
-  <a href="history.html"><span class="ic">&#x1F4C8;</span>히스토리</a>
-  <a href="setting.html"><span class="ic">&#x2699;&#xFE0F;</span>설정</a>
-  <a href="snapshot.html" class="active"><span class="ic">&#x1F4F7;</span>스냅샷</a>
-</nav>
-
-<script>
-const GAS = 'https://script.google.com/macros/s/AKfycbw42bSbW1U2SUfta-d1cjYDD5PZG6q4JeIy5yYePRKLXTWU78ueprlss2SjHSK3GpVz6g/exec';
-// 스냅샷 저장소스 URL (AppSheet의 Snapshot 시트에 저장된 URL)
-const SNAP_SOURCE = 'https://script.google.com/macros/s/AKfycbywM1T0g2VUYLeUbL2oDdYjL2VXSVdmhJKU2wS3JvhSUeinB1inE6Z2L3c5pLIY_wyW_A/exec?action=snapshot';
-
-// 기본 설정값 (실제 구글 시트의 Snapshot 시트 데이터 반영)
-let currentSettings = {
-  day: 1,
-  cycle: '\uC6D4',
-  hour: 7
-};
-
-function showToast(msg, isErr) {
-  const t = document.getElementById('toast');
-  t.textContent = msg;
-  t.style.background = isErr ? '#e74c3c' : '#1a1f2e';
-  t.classList.add('show');
-  setTimeout(() => t.classList.remove('show'), 3000);
-}
-
-function renderCurrentValues() {
-  document.getElementById('curDay').textContent = '\uB9E4\uC6D4 ' + currentSettings.day + '\uC77C';
-  document.getElementById('curCycle').textContent = currentSettings.cycle;
-  document.getElementById('curTime').textContent = currentSettings.hour + '\uC2DC';
-  document.getElementById('fDay').value = currentSettings.day;
-  document.getElementById('fCycle').value = currentSettings.cycle;
-  document.getElementById('fHour').value = currentSettings.hour;
-  document.getElementById('sourceUrl').textContent = SNAP_SOURCE;
-}
-
-async function loadSettings() {
-  try {
-    const res = await fetch(GAS + '?action=api&type=snapshot_config');
-    const data = await res.json();
-    if (data && data.day) currentSettings = data;
-  } catch(e) {
-    // Use defaults (from AppSheet Snapshot sheet)
-  }
-  renderCurrentValues();
-}
-
-async function saveSetting() {
-  const day = parseInt(document.getElementById('fDay').value);
-  const cycle = document.getElementById('fCycle').value;
-  const hour = parseInt(document.getElementById('fHour').value);
-
-  if (!day || day < 1 || day > 31) { showToast('\u26A0\uFE0F \uC800\uC7A5\uC77C\uC744 1~31 \uC0AC\uC774\uB85C \uC785\uB825\uD558\uC138\uC694', true); return; }
-  if (!cycle) { showToast('\u26A0\uFE0F \uBC18\uBCF5\uC8FC\uAE30\uB97C \uC120\uD0DD\uD558\uC138\uC694', true); return; }
-  if (isNaN(hour) || hour < 0 || hour > 23) { showToast('\u26A0\uFE0F \uC800\uC7A5\uC2DC\uAC04\uC744 0~23 \uC0AC\uC774\uB85C \uC785\uB825\uD558\uC138\uC694', true); return; }
-
-  const btn = document.getElementById('btnSave');
-  btn.textContent = '\u23F3 \uC800\uC7A5 \uC911...'; btn.disabled = true;
-
   try {
     const res = await fetch(GAS, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'update', type: 'snapshot_config', day, cycle, hour })
+      headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify({ action: 'snapshot' })
     });
-    const r = await res.json();
-    if (r.result === 'success' || r.status === 'ok' || r.ok) {
-      currentSettings = { day, cycle, hour };
-      renderCurrentValues();
-      showToast('\u2705 \uC124\uC815\uC774 \uC800\uC7A5\uB418\uC5C8\uC2B5\uB2C8\uB2E4!');
-    } else {
-      showToast('\u274C \uC800\uC7A5 \uC2E4\uD328: ' + (r.message || '\uC624\uB958'), true);
-    }
-  } catch(e) {
-    // Show success anyway since settings are stored in Google Sheets via AppSheet
-    currentSettings = { day, cycle, hour };
-    renderCurrentValues();
-    showToast('\u2705 \uC124\uC815\uAC12\uC774 \uBCC0\uACBD\uB418\uC5C8\uC2B5\uB2C8\uB2E4 (\uAD6C\uAE00 \uC2DC\uD2B8\uC5D0 \uC800\uC7A5\uD558\uB824\uBA74 \uC571\uC2DC\uD2B8\uB97C \uC0AC\uC6A9\uD558\uC138\uC694)');
+    const text = await res.text();
+    let success = false;
+    if (text && !text.startsWith('<')) {
+      try { const r = JSON.parse(text); success = r.result === 'success' || r.status === 'ok' || r.ok; }
+      catch { success = res.ok; }
+    } else { success = res.ok; }
+    if (success) showToast('✅ 수동 스냅샷 저장 완료 (' + dateStr + ')');
+    else showToast('❌ 저장 실패: ' + text.substring(0,100));
+  } catch (err) {
+    showToast('❌ 오류: ' + err.message);
   } finally {
-    btn.textContent = '\uD83D\uDCBE \uC124\uC815 \uC800\uC7A5'; btn.disabled = false;
+    btn.textContent = '▶️ 지금 스냅샷 저장'; btn.disabled = false;
   }
 }
 
