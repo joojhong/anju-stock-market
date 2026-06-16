@@ -37,9 +37,9 @@ select:focus,input[type=date]:focus{border-color:#1a1f2e}
 .chart-wrap{position:relative;height:280px}
 .loading{padding:40px;text-align:center;color:#80868b;font-size:14px}
 .error{padding:20px;text-align:center;color:#e74c3c;font-size:13px;background:#fff0f0;border-radius:8px;margin:12px 16px}
-nav{position:fixed;bottom:0;left:0;width:100%;background:white;border-top:1px solid #e8eaed;display:grid;grid-template-columns:repeat(5,1fr);z-index:100}
-nav a{display:flex;flex-direction:column;align-items:center;padding:9px 0 7px;text-decoration:none;color:#80868b;font-size:10px;gap:2px}
-nav a.active{color:#1a1f2e;font-weight:700}
+nav{position:fixed;bottom:0;left:0;width:100%;background:#1a1f2e;border-top:1px solid rgba(255,255,255,0.1);display:grid;grid-template-columns:repeat(5,1fr);z-index:100}
+nav a{display:flex;flex-direction:column;align-items:center;padding:9px 0 7px;text-decoration:none;color:rgba(255,255,255,0.6);font-size:10px;gap:2px}
+nav a.active{color:white;font-weight:700}
 nav a .ic{font-size:21px}
 </style>
 </head>
@@ -126,7 +126,8 @@ sel.innerHTML='<option value="">전체</option>';
 arr.sort().forEach(function(v){
 var o=document.createElement('option');
 o.value=v;
-callback:function(v){var m=v/1000000;return'sel.appendChild(o);
+o.textContent=(labelsMap[type]&&labelsMap[type][v])?labelsMap[type][v]:v;
+sel.appendChild(o);
 });
 }
 function applyFilter(){
@@ -150,7 +151,7 @@ var cHtml='<div class="chart-card"><div class="chart-top"><div><div class="chart
 document.getElementById('chartArea').innerHTML=cHtml;
 if(myChart){myChart.destroy();myChart=null;}
 var ctx=document.getElementById('myChart').getContext('2d');
-myChart=new Chart(ctx,{type:'line',data:{labels:dates,datasets:[{data:vals,borderColor:'#1a1f2e',backgroundColor:'rgba(26,31,46,0.06)',borderWidth:2,pointRadius:dates.length<=30?4:2,pointBackgroundColor:'#1a1f2e',fill:true,tension:0.3}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:function(c){return' ₩'+num(c.raw);}}}},scales:{x:{grid:{display:false},ticks:{maxTicksLimit:8,font:{size:11},callback:function(v,i,t){var d=dates[i];if(!d)return'';var p=d.split('-');return p[0].slice(2)+'/'+p[1]+'/'+p[2];}}},y:{grid:{color:'#f0f2f5'},ticks:{callback:function(v){var m=v/1000000;return''₩'+(Number.isInteger(m)?m:m.toFixed(1))+'백만';},font:{size:11}}}}}});
+myChart=new Chart(ctx,{type:'line',data:{labels:dates,datasets:[{data:vals,borderColor:'#1a1f2e',backgroundColor:'rgba(26,31,46,0.06)',borderWidth:2,pointRadius:dates.length<=30?4:2,pointBackgroundColor:'#1a1f2e',fill:true,tension:0.3}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:function(c){return' ₩'+num(c.raw);}}}},scales:{x:{grid:{display:false},ticks:{maxTicksLimit:8,font:{size:11},callback:function(v,i,t){var d=dates[i];if(!d)return'';var p=d.split('-');return p[0].slice(2)+'/'+p[1]+'/'+p[2];}}},y:{grid:{color:'#f0f2f5'},ticks:{callback:function(v){var m=v/1000000;return'₩'+(Number.isInteger(m)?m:m.toFixed(1))+'백만';},font:{size:11}}}}}});
 }
 loadLabels(loadSnapshot);
 </script>
