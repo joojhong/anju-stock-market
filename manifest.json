@@ -1,0 +1,22 @@
+{
+  "name": "안주주식마켓",
+  "short_name": "안주주식",
+  "description": "안주주식마켓 - 주식 거래 관리",
+  "start_url": "index.html",
+  "display": "standalone",
+  "background_color": "#1a1f2e",
+  "theme_color": "#1a1f2e",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
