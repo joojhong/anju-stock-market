@@ -40,6 +40,7 @@ nav a .ic { font-size: 21px; }
 .trade-type-badge.sell { background: #f0f6ff; color: #3498db; }
 .trade-info { font-size: 12px; color: #666; display: flex; gap: 10px; flex-wrap: wrap; }
 .trade-amount { font-size: 14px; font-weight: 700; color: #1a1f2e; margin-top: 6px; }
+.trade-account { font-size: 11px; color: #999; margin-top: 3px; }
 .loading { text-align: center; color: #999; padding: 30px; font-size: 14px; }
 .empty { text-align: center; color: #bbb; padding: 40px; }
 .empty-icon { font-size: 40px; margin-bottom: 10px; }
@@ -77,6 +78,10 @@ nav a .ic { font-size: 21px; }
       <div class="trade-type-row">
         <button class="trade-type-btn buy active" onclick="setTradeType('buy')">매수</button>
         <button class="trade-type-btn sell" onclick="setTradeType('sell')">매도</button>
+      </div>
+      <div class="form-group">
+        <label>날짜</label>
+        <input type="date" id="inpDate">
       </div>
       <div class="form-group">
         <label>사용자</label>
@@ -133,6 +138,17 @@ const GAS = 'https://script.google.com/macros/s/AKfycbw42bSbW1U2SUfta-d1cjYDD5PZ
 var stockMap = {};
 let tradeType = 'buy';
 let accountRows = [];
+let labelsCache = {};
+
+// 오늘 날짜를 YYYY-MM-DD 형식으로 반환
+function getTodayStr() {
+  const d = new Date();
+  const kst = new Date(d.getTime() + 9 * 60 * 60 * 1000);
+  const y = kst.getUTCFullYear();
+  const m = String(kst.getUTCMonth() + 1).padStart(2, '0');
+  const day = String(kst.getUTCDate()).padStart(2, '0');
+  return y + '-' + m + '-' + day;
+}
 
 function switchTab(tab) {
   document.querySelectorAll('.tab-btn').forEach((b,i) => b.classList.toggle('active', (tab==='form'&&i===0)||(tab==='list'&&i===1)));
@@ -166,6 +182,7 @@ async function loadLabels() {
     var lab = await labRes.json();
     var acc = await accRes.json();
     accountRows = (acc.data || []).slice(1);
+    labelsCache = lab;
     populateSelectFromObj('selUser', lab['사용자'] || {});
     populateSelectFromObj('selInst', lab['금융기관'] || {});
     populateSelectFromObj('selProd', lab['상품'] || {});
@@ -174,6 +191,9 @@ async function loadLabels() {
   } catch(e) {
     console.error('라벨 로드 오류:', e);
   }
+  // 날짜 기본값 설정
+  const dateEl = document.getElementById('inpDate');
+  if (dateEl && !dateEl.value) dateEl.value = getTodayStr();
 }
 
 function findAccountId(userId, instId, prodId) {
@@ -181,12 +201,26 @@ function findAccountId(userId, instId, prodId) {
   return found ? found[0] : null;
 }
 
+// 계좌ID로 계좌명(사용자+금융기관+상품) 반환
+function getAccountLabel(accountId) {
+  if (!accountId) return '';
+  // accountRows: [계좌ID, 사용자ID, 금융기관ID, 상품ID, ...]
+  const row = accountRows.find(r => r[0] === accountId);
+  if (!row) return accountId;
+  const users = labelsCache['사용자'] || {};
+  const insts = labelsCache['금융기관'] || {};
+  const prods = labelsCache['상품'] || {};
+  const uName = users[row[1]] || row[1] || '';
+  const bName = insts[row[2]] || row[2] || '';
+  const pName = prods[row[3]] || row[3] || '';
+  return [uName, bName, pName].filter(Boolean).join(' ');
+}
+
 // UTC ISO 날짜를 KST(+9h) 날짜문자열로 변환
 function formatDateKST(dateStr) {
   if (!dateStr) return '';
   var d = new Date(dateStr);
   if (isNaN(d.getTime())) return dateStr.toString().substring(0, 10);
-  // KST = UTC + 9h
   var kst = new Date(d.getTime() + 9 * 60 * 60 * 1000);
   var y = kst.getUTCFullYear();
   var m = String(kst.getUTCMonth() + 1).padStart(2, '0');
@@ -195,6 +229,7 @@ function formatDateKST(dateStr) {
 }
 
 async function submitTrade() {
+  var tradeDate = document.getElementById('inpDate').value || getTodayStr();
   var userId = document.getElementById('selUser').value;
   var instId = document.getElementById('selInst').value;
   var prodId = document.getElementById('selProd').value;
@@ -218,12 +253,11 @@ async function submitTrade() {
   btn.textContent = '저장 중...';
 
   try {
-    // GAS addTrading 함수는 수량*단가를 계산해서 거래금액 컴럼에 저장
-    // body['거래금액'] || body['금액'] || 0 형태이므로 둘 다 전달
     var amount = qty * price;
     var body = {
       action: 'add',
       type: 'trading',
+      '날짜': tradeDate,
       '사용자ID': userId,
       '금융기관ID': accountId,
       '종목코드': stockId,
@@ -260,6 +294,7 @@ async function submitTrade() {
 }
 
 function resetForm() {
+  document.getElementById('inpDate').value = getTodayStr();
   document.getElementById('selUser').value = '';
   document.getElementById('selInst').value = '';
   document.getElementById('selProd').value = '';
@@ -295,6 +330,7 @@ async function loadTradeList() {
     var iPrice = ci('단가');
     var iAmt = ci('거래금액');
     var iTradeId = ci('거래ID');
+    var iAccId = ci('금융기관ID');
 
     el.innerHTML = dataRows.map(function(r) {
       var type = iType >= 0 ? (r[iType] || '') : '';
@@ -304,6 +340,9 @@ async function loadTradeList() {
       var amt = Number(iAmt >= 0 ? (r[iAmt] || 0) : 0) || (qty * price);
       var stock = iStock >= 0 ? (stockMap[r[iStock]] || r[iStock] || '-') : '-';
       var date = iDate >= 0 ? formatDateKST(r[iDate]) : '';
+      var accId = iAccId >= 0 ? r[iAccId] : '';
+      var accLabel = getAccountLabel(accId);
+      var tradeId = iTradeId >= 0 ? r[iTradeId] : '';
       return '<div class="trade-item">' +
         '<div class="trade-header">' +
           '<span class="trade-stock">' + stock + '</span>' +
@@ -314,7 +353,8 @@ async function loadTradeList() {
           '<span>' + qty.toLocaleString() + '주 @ ' + price.toLocaleString() + '원</span>' +
         '</div>' +
         '<div class="trade-amount">' + amt.toLocaleString() + '원</div>' +
-      '<div class="trade-del-wrap"><button class="btn-del-trade" onclick="deleteTrade(\'' + (iTradeId >= 0 ? r[iTradeId] : '') + '\', \'' + date + '\')">삭제</button></div>' +
+        (accLabel ? '<div class="trade-account">👤 ' + accLabel + '</div>' : '') +
+      '<div class="trade-del-wrap"><button class="btn-del-trade" onclick="deleteTrade('' + tradeId + '', '' + date + '')">삭제</button></div>' +
       '</div>';
     }).join('');
   } catch(e) {
@@ -334,7 +374,7 @@ function deleteTrade(tradeId, date) {
       const res = await fetch(GAS, {
         method: 'POST',
         headers: {'Content-Type': 'text/plain'},
-        body: JSON.stringify({action: 'delete', type: 'setting', category: 'trading', id: tradeId})
+        body: JSON.stringify({action: 'delete', type: 'trading', category: 'trading', id: tradeId})
       });
       const data = await res.json();
       if (data.result === 'success' || data.status === 'ok') {
@@ -356,6 +396,8 @@ function showToast(msg) {
   setTimeout(() => t.style.display = 'none', 2000);
 }
 
+// 페이지 로드 시 날짜 초기화
+document.getElementById('inpDate').value = getTodayStr();
 loadLabels();
 </script>
 <div id="delConfirmOverlay" class="del-confirm-overlay" style="display:none;">
