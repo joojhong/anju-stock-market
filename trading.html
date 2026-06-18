@@ -49,6 +49,16 @@ nav a .ic { font-size: 21px; }
 .popup-icon { font-size: 48px; margin-bottom: 12px; }
 .popup-title { font-size: 18px; font-weight: 700; color: #1a1f2e; margin-bottom: 8px; }
 .popup-msg { font-size: 14px; color: #666; }
+.trade-del-wrap { text-align:right; margin-top:6px; }
+.btn-del-trade { background:#fff0f0; color:#d32f2f; border:1px solid #ffcdd2; border-radius:6px; font-size:11px; padding:3px 10px; cursor:pointer; }
+.btn-del-trade:hover { background:#ffcdd2; }
+.del-confirm-overlay { position:fixed; top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:500;display:flex;align-items:center;justify-content:center; }
+.del-confirm-box { background:white;border-radius:14px;padding:24px;margin:20px;max-width:320px;width:100%; }
+.del-confirm-box h3 { font-size:16px;font-weight:700;margin-bottom:12px;color:#1a1f2e; }
+.del-confirm-box p { font-size:14px;color:#555;margin-bottom:20px;line-height:1.5; }
+.del-confirm-btns { display:flex;gap:8px;justify-content:flex-end; }
+.del-cancel-btn { padding:8px 16px;border:1px solid #ddd;border-radius:8px;background:white;cursor:pointer;font-size:14px; }
+.del-ok-btn { padding:8px 16px;background:#d32f2f;color:white;border:none;border-radius:8px;cursor:pointer;font-size:14px; }
 </style>
 </head>
 <body>
@@ -284,6 +294,7 @@ async function loadTradeList() {
     var iQty = ci('수량');
     var iPrice = ci('단가');
     var iAmt = ci('거래금액');
+    var iTradeId = ci('거래ID');
 
     el.innerHTML = dataRows.map(function(r) {
       var type = iType >= 0 ? (r[iType] || '') : '';
@@ -303,6 +314,7 @@ async function loadTradeList() {
           '<span>' + qty.toLocaleString() + '주 @ ' + price.toLocaleString() + '원</span>' +
         '</div>' +
         '<div class="trade-amount">' + amt.toLocaleString() + '원</div>' +
+      '<div class="trade-del-wrap"><button class="btn-del-trade" onclick="deleteTrade(\'' + (iTradeId >= 0 ? r[iTradeId] : '') + '\', \'' + date + '\')">삭제</button></div>' +
       '</div>';
     }).join('');
   } catch(e) {
@@ -310,7 +322,51 @@ async function loadTradeList() {
   }
 }
 
+function deleteTrade(tradeId, date) {
+  const msg = document.getElementById('delConfirmMsg');
+  msg.textContent = date + ' 거래 내역이 삭제됩니다.';
+  const overlay = document.getElementById('delConfirmOverlay');
+  overlay.style.display = 'flex';
+  const okBtn = document.getElementById('delOkBtn');
+  okBtn.onclick = async function() {
+    overlay.style.display = 'none';
+    try {
+      const res = await fetch(GAS, {
+        method: 'POST',
+        headers: {'Content-Type': 'text/plain'},
+        body: JSON.stringify({action: 'delete', type: 'setting', category: 'trading', id: tradeId})
+      });
+      const data = await res.json();
+      if (data.result === 'success' || data.status === 'ok') {
+        showToast('삭제되었습니다.');
+        loadTradeList();
+      } else {
+        showToast('오류: ' + (data.message || '실패'));
+      }
+    } catch(e) {
+      showToast('삭제 실패: ' + e.message);
+    }
+  };
+}
+
+function showToast(msg) {
+  let t = document.getElementById('delToast');
+  if (!t) { t = document.createElement('div'); t.id = 'delToast'; t.style.cssText = 'position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:#333;color:white;padding:10px 20px;border-radius:8px;z-index:600;font-size:14px;'; document.body.appendChild(t); }
+  t.textContent = msg; t.style.display = 'block';
+  setTimeout(() => t.style.display = 'none', 2000);
+}
+
 loadLabels();
 </script>
+<div id="delConfirmOverlay" class="del-confirm-overlay" style="display:none;">
+  <div class="del-confirm-box">
+    <h3>거래 내역 삭제</h3>
+    <p id="delConfirmMsg"></p>
+    <div class="del-confirm-btns">
+      <button class="del-cancel-btn" onclick="document.getElementById('delConfirmOverlay').style.display='none'">취소</button>
+      <button class="del-ok-btn" id="delOkBtn">삭제</button>
+    </div>
+  </div>
+</div>
 </body>
 </html>
