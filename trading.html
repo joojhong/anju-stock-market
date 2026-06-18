@@ -123,12 +123,12 @@ function setTradeType(t) {
   document.querySelector('.trade-type-btn.' + t).classList.add('active');
 }
 
-// Populate select from object {id: name} format
 function populateSelectFromObj(id, obj) {
   const sel = document.getElementById(id);
   sel.innerHTML = '<option value="">선택하세요</option>';
-  Object.entries(obj).forEach(([k, v]) => {
-    const opt = document.createElement('option');
+  Object.entries(obj).forEach(function(entry) {
+    var k = entry[0], v = entry[1];
+    var opt = document.createElement('option');
     opt.value = k;
     opt.textContent = v;
     sel.appendChild(opt);
@@ -137,16 +137,11 @@ function populateSelectFromObj(id, obj) {
 
 async function loadLabels() {
   try {
-    const [labRes, accRes] = await Promise.all([
-      fetch(GAS + '?action=api&type=labels'),
-      fetch(GAS + '?action=readSheet&sheet=계좌')
-    ]);
-    const lab = await labRes.json();
-    const acc = await accRes.json();
-
-    // Account data: [[header], [C001,A001,B001,D003], ...]
-    accountRows = (acc.data || []).slice(1); // skip header row
-
+    var labRes = await fetch(GAS + '?action=api&type=labels');
+    var accRes = await fetch(GAS + '?action=readSheet&sheet=계좌');
+    var lab = await labRes.json();
+    var acc = await accRes.json();
+    accountRows = (acc.data || []).slice(1);
     populateSelectFromObj('selUser', lab['사용자'] || {});
     populateSelectFromObj('selInst', lab['금융기관'] || {});
     populateSelectFromObj('selProd', lab['상품'] || {});
@@ -156,58 +151,59 @@ async function loadLabels() {
   }
 }
 
-// accountRows: [[C001,A001,B001,D003], [C002,A001,B002,D001], ...]
-// cols: 0=계좌ID, 1=사용자ID, 2=금융기관ID, 3=상품ID
+// accountRows: [[C001,A001,B001,D003], ...]  cols: 0=계좌ID, 1=사용자ID, 2=금융기관ID, 3=상품ID
 function findAccountId(userId, instId, prodId) {
-  const found = accountRows.find(r => r[1] === userId && r[2] === instId && r[3] === prodId);
+  var found = accountRows.find(function(r) { return r[1] === userId && r[2] === instId && r[3] === prodId; });
   return found ? found[0] : null;
 }
 
 async function submitTrade() {
-  const userId = document.getElementById('selUser').value;
-  const instId = document.getElementById('selInst').value;
-  const prodId = document.getElementById('selProd').value;
-  const stockId = document.getElementById('selStock').value;
-  const qty = document.getElementById('inpQty').value;
-  const price = document.getElementById('inpPrice').value;
+  var userId = document.getElementById('selUser').value;
+  var instId = document.getElementById('selInst').value;
+  var prodId = document.getElementById('selProd').value;
+  var stockId = document.getElementById('selStock').value;
+  var qty = Number(document.getElementById('inpQty').value);
+  var price = Number(document.getElementById('inpPrice').value);
 
   if (!userId || !instId || !prodId || !stockId || !qty || !price) {
     alert('모든 항목을 입력해주세요.');
     return;
   }
 
-  const accountId = findAccountId(userId, instId, prodId);
+  var accountId = findAccountId(userId, instId, prodId);
   if (!accountId) {
     alert('해당 사용자/기관/상품 조합의 계좌가 없습니다.');
     return;
   }
 
-  const btn = document.querySelector('.save-btn');
+  var btn = document.querySelector('.save-btn');
   btn.disabled = true;
   btn.textContent = '저장 중...';
 
   try {
-    const body = {
-      action: 'addTrading',
+    var body = {
+      action: 'add',
+      type: 'trading',
       '사용자ID': userId,
       '금융기관ID': accountId,
       '종목코드': stockId,
       '거래유형': tradeType === 'buy' ? '매수' : '매도',
-      '수량': Number(qty),
-      '단가': Number(price)
+      '수량': qty,
+      '단가': price,
+      '거래금액': qty * price
     };
 
-    const res = await fetch(GAS, {
+    var res = await fetch(GAS, {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain' },
       body: JSON.stringify(body)
     });
-    const data = await res.json();
+    var data = await res.json();
 
     if (data.result === 'success' || data.success || data.id) {
       showPopup();
       resetForm();
-      setTimeout(() => {
+      setTimeout(function() {
         hidePopup();
         switchTab('list');
       }, 1500);
@@ -236,42 +232,41 @@ function showPopup() { document.getElementById('popupOverlay').classList.add('sh
 function hidePopup() { document.getElementById('popupOverlay').classList.remove('show'); }
 
 async function loadTradeList() {
-  const el = document.getElementById('tradeListContent');
+  var el = document.getElementById('tradeListContent');
   el.innerHTML = '<div class="loading">&#x23F3; 거래 내역 로딩 중...</div>';
   try {
-    const res = await fetch(GAS + '?action=readSheet&sheet=거래내역');
-    const data = await res.json();
-    const rows = (data.data || []);
+    var res = await fetch(GAS + '?action=readSheet&sheet=거래내역');
+    var data = await res.json();
+    var rows = (data.data || []);
     if (rows.length <= 1) {
       el.innerHTML = '<div class="empty"><div class="empty-icon">&#x1F4CB;</div>거래 내역이 없습니다.</div>';
       return;
     }
-    const headers = rows[0];
-    const dataRows = rows.slice(1).reverse();
+    var headers = rows[0];
+    var dataRows = rows.slice(1).reverse();
 
-    const ci = (name) => {
-      const idx = headers.indexOf(name);
+    function ci(name) {
+      var idx = headers.indexOf(name);
       return idx !== -1 ? idx : -1;
-    };
+    }
 
-    // Column indices
-    const iId = ci('거래ID');
-    const iDate = ci('거래일자');
-    const iUser = ci('사용자ID');
-    const iAcc = ci('계좌아이디');
-    const iStock = ci('종목코드');
-    const iType = ci('거래유형');
-    const iQty = ci('수량');
-    const iPrice = ci('단가');
+    var iDate = ci('날짜'); // 날짜
+    var iType = ci('거래유형');
+    var iStock = ci('종목코드');
+    var iQty = ci('수량');
+    var iPrice = ci('단가');
+    var iAmt = ci('거래금액');
 
-    el.innerHTML = dataRows.map(r => {
-      const type = iType >= 0 ? (r[iType] || '') : '';
-      const isBuy = type === '매수' || type === 'buy';
-      const qty = Number(iQty >= 0 ? (r[iQty] || 0) : 0);
-      const price = Number(iPrice >= 0 ? (r[iPrice] || 0) : 0);
-      const total = qty * price;
-      const stock = iStock >= 0 ? (r[iStock] || '-') : '-';
-      const date = iDate >= 0 ? (r[iDate] || '') : '';
+    el.innerHTML = dataRows.map(function(r) {
+      var type = iType >= 0 ? (r[iType] || '') : '';
+      var isBuy = type === '매수' || type === 'buy';
+      var qty = Number(iQty >= 0 ? (r[iQty] || 0) : 0);
+      var price = Number(iPrice >= 0 ? (r[iPrice] || 0) : 0);
+      var amt = Number(iAmt >= 0 ? (r[iAmt] || 0) : 0) || (qty * price);
+      var stock = iStock >= 0 ? (r[iStock] || '-') : '-';
+      var date = iDate >= 0 ? (r[iDate] || '') : '';
+      // Format date - handle ISO string
+      if (date && date.indexOf('T') > -1) date = date.substring(0, 10);
       return '<div class="trade-item">' +
         '<div class="trade-header">' +
           '<span class="trade-stock">' + stock + '</span>' +
@@ -281,7 +276,7 @@ async function loadTradeList() {
           '<span>' + date + '</span>' +
           '<span>' + qty.toLocaleString() + '주 @ ' + price.toLocaleString() + '원</span>' +
         '</div>' +
-        '<div class="trade-amount">' + total.toLocaleString() + '원</div>' +
+        '<div class="trade-amount">' + amt.toLocaleString() + '원</div>' +
       '</div>';
     }).join('');
   } catch(e) {
