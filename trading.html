@@ -353,7 +353,7 @@ async function loadTradeList() {
           '<span>' + qty.toLocaleString() + '주 @ ' + price.toLocaleString() + '원</span>' +
         '</div>' +
         '<div class="trade-amount">' + amt.toLocaleString() + '원</div>' +
-        (accLabel ? '<div class="trade-account">👤 ' + accLabel + '</div>' : '') +
+        (accLabel ? '<div class="trade-account">\uD83D\uDC64 ' + accLabel + '</div>' : '') +
       '<div class="trade-del-wrap"><button class="btn-del-trade" data-id="' + tradeId + '" data-date="' + date + '" onclick="deleteTrade(this.dataset.id, this.dataset.date)">삭제</button></div>' +
       '</div>';
     }).join('');
