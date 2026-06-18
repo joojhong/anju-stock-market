@@ -314,6 +314,16 @@ async function loadLabels() {
   } catch(e) { renderSetting(labelsMap); /* 오류 시에도 렌더링 */ }
 }
 
+function updateAccName() {
+  const u = document.getElementById('editUser'); const b = document.getElementById('editBank'); const p = document.getElementById('editProd');
+  if (!u || !b || !p) return;
+  const uLabel = u.options[u.selectedIndex]?.textContent || u.value || '';
+  const bLabel = b.options[b.selectedIndex]?.textContent || b.value || '';
+  const pLabel = p.options[p.selectedIndex]?.textContent || p.value || '';
+  const accName = [uLabel, bLabel, pLabel].filter(Boolean).join(' ');
+  document.getElementById('editName').value = accName;
+}
+
 function openEdit(type, id, name) {
   editCtx = {type, id};
   document.getElementById('modalTitle').textContent = type === 'account' ? '계좌 수정' : type === 'stock' ? '종목 수정' : '항목 수정';
@@ -330,13 +340,23 @@ function openEdit(type, id, name) {
       const [label, elId, field] = item.split('|');
       const fg = document.createElement('div'); fg.className = 'fg';
       const lbl = document.createElement('label'); lbl.textContent = label;
-      const sel = document.createElement('select'); sel.id = elId;
+      const sel = document.createElement('select'); sel.id = elId; sel.addEventListener('change', updateAccName);
       const opt0 = document.createElement('option'); opt0.value = ''; opt0.textContent = '선택';
       sel.appendChild(opt0);
       makeOpts(labelsMap[label] || {}, acc[field] || '').forEach(o => sel.appendChild(o));
       fg.appendChild(lbl); fg.appendChild(sel);
       extra.appendChild(fg);
     });
+    document.getElementById('editName').readOnly = true;
+    updateAccName();
+  } else if (type === 'stock') {
+    const fg2 = document.createElement('div'); fg2.className = 'fg';
+    const lbl2 = document.createElement('label'); lbl2.textContent = '거래소:종목코드';
+    const inp2 = document.createElement('input'); inp2.type = 'text'; inp2.id = 'editStockCode';
+    inp2.placeholder = '예: KRX:438100'; inp2.value = id || '';
+    fg2.appendChild(lbl2); fg2.appendChild(inp2); extra.appendChild(fg2);
+  } else {
+    document.getElementById('editName').readOnly = false;
   }
 
   document.getElementById('editModal').classList.add('active');
@@ -360,6 +380,9 @@ async function saveEdit() {
     payload.user = (document.getElementById('editUser') || {}).value || '';
     payload.bank = (document.getElementById('editBank') || {}).value || '';
     payload.product = (document.getElementById('editProd') || {}).value || '';
+  } else if (editCtx.type === 'stock') {
+    const scEl = document.getElementById('editStockCode');
+    if (scEl) payload.code = scEl.value.trim();
   }
 
   try {
