@@ -65,27 +65,19 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; b
       </div>
       <div class="form-group">
         <label>사용자</label>
-        <select id="selUser">
-          <option value="">로딩 중...</option>
-        </select>
+        <select id="selUser"><option value="">로딩 중...</option></select>
       </div>
       <div class="form-group">
         <label>금융기관</label>
-        <select id="selInst">
-          <option value="">로딩 중...</option>
-        </select>
+        <select id="selInst"><option value="">로딩 중...</option></select>
       </div>
       <div class="form-group">
         <label>상품</label>
-        <select id="selProd">
-          <option value="">로딩 중...</option>
-        </select>
+        <select id="selProd"><option value="">로딩 중...</option></select>
       </div>
       <div class="form-group">
         <label>종목</label>
-        <select id="selStock">
-          <option value="">로딩 중...</option>
-        </select>
+        <select id="selStock"><option value="">로딩 중...</option></select>
       </div>
       <div class="form-group">
         <label>수량</label>
@@ -109,15 +101,14 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; b
   <div class="popup-box">
     <div class="popup-icon">&#x2705;</div>
     <div class="popup-title">등록 완료!</div>
-    <div class="popup-msg" id="popupMsg">거래가 성공적으로 등록되었습니다.</div>
+    <div class="popup-msg">거래가 성공적으로 등록되었습니다.</div>
   </div>
 </div>
 
 <script>
 const GAS = 'https://script.google.com/macros/s/AKfycbw42bSbW1U2SUfta-d1cjYDD5PZG6q4JeIy5yYePRKLXTWU78ueprlss2SjHSK3GpVz6g/exec';
 let tradeType = 'buy';
-let labelsData = {};
-let accountData = [];
+let accountRows = [];
 
 function switchTab(tab) {
   document.querySelectorAll('.tab-btn').forEach((b,i) => b.classList.toggle('active', (tab==='form'&&i===0)||(tab==='list'&&i===1)));
@@ -132,6 +123,18 @@ function setTradeType(t) {
   document.querySelector('.trade-type-btn.' + t).classList.add('active');
 }
 
+// Populate select from object {id: name} format
+function populateSelectFromObj(id, obj) {
+  const sel = document.getElementById(id);
+  sel.innerHTML = '<option value="">선택하세요</option>';
+  Object.entries(obj).forEach(([k, v]) => {
+    const opt = document.createElement('option');
+    opt.value = k;
+    opt.textContent = v;
+    sel.appendChild(opt);
+  });
+}
+
 async function loadLabels() {
   try {
     const [labRes, accRes] = await Promise.all([
@@ -141,41 +144,23 @@ async function loadLabels() {
     const lab = await labRes.json();
     const acc = await accRes.json();
 
-    labelsData = lab;
-    accountData = acc.data || [];
+    // Account data: [[header], [C001,A001,B001,D003], ...]
+    accountRows = (acc.data || []).slice(1); // skip header row
 
-    populateSelect('selUser', lab['사용자'] || [], 'id', 'name');
-    populateSelect('selInst', lab['금융기관'] || [], 'id', 'name');
-    populateSelect('selProd', lab['상품'] || [], 'id', 'name');
-    populateSelect('selStock', lab['종목'] || [], 'id', 'name');
+    populateSelectFromObj('selUser', lab['사용자'] || {});
+    populateSelectFromObj('selInst', lab['금융기관'] || {});
+    populateSelectFromObj('selProd', lab['상품'] || {});
+    populateSelectFromObj('selStock', lab['종목'] || {});
   } catch(e) {
     console.error('라벨 로드 오류:', e);
   }
 }
 
-function populateSelect(id, items, valKey, labelKey) {
-  const sel = document.getElementById(id);
-  sel.innerHTML = '<option value="">선택하세요</option>';
-  items.forEach(item => {
-    const opt = document.createElement('option');
-    opt.value = item[valKey] || item.id || '';
-    opt.textContent = item[labelKey] || item.name || '';
-    sel.appendChild(opt);
-  });
-}
-
+// accountRows: [[C001,A001,B001,D003], [C002,A001,B002,D001], ...]
+// cols: 0=계좌ID, 1=사용자ID, 2=금융기관ID, 3=상품ID
 function findAccountId(userId, instId, prodId) {
-  if (!accountData.length) return null;
-  const headers = accountData[0];
-  const rows = accountData.slice(1);
-  // Find column indices
-  const colId = headers.indexOf('계좌아이디') !== -1 ? headers.indexOf('계좌아이디') : 0;
-  const colUser = headers.indexOf('사용자아이디') !== -1 ? headers.indexOf('사용자아이디') : 1;
-  const colInst = headers.indexOf('금융기관아이디') !== -1 ? headers.indexOf('금융기관아이디') : 2;
-  const colProd = headers.indexOf('상품아이디') !== -1 ? headers.indexOf('상품아이디') : 3;
-
-  const found = rows.find(r => r[colUser] === userId && r[colInst] === instId && r[colProd] === prodId);
-  return found ? found[colId] : null;
+  const found = accountRows.find(r => r[1] === userId && r[2] === instId && r[3] === prodId);
+  return found ? found[0] : null;
 }
 
 async function submitTrade() {
@@ -204,12 +189,12 @@ async function submitTrade() {
   try {
     const body = {
       action: 'addTrading',
-      사용자ID: userId,
-      금융기관ID: accountId,
-      종목코드: stockId,
-      거래유형: tradeType === 'buy' ? '매수' : '매도',
-      수량: Number(qty),
-      단가: Number(price)
+      '사용자ID': userId,
+      '금융기관ID': accountId,
+      '종목코드': stockId,
+      '거래유형': tradeType === 'buy' ? '매수' : '매도',
+      '수량': Number(qty),
+      '단가': Number(price)
     };
 
     const res = await fetch(GAS, {
@@ -225,7 +210,7 @@ async function submitTrade() {
       setTimeout(() => {
         hidePopup();
         switchTab('list');
-      }, 1200);
+      }, 1500);
     } else {
       alert('저장 실패: ' + (data.message || JSON.stringify(data)));
     }
@@ -247,12 +232,8 @@ function resetForm() {
   setTradeType('buy');
 }
 
-function showPopup() {
-  document.getElementById('popupOverlay').classList.add('show');
-}
-function hidePopup() {
-  document.getElementById('popupOverlay').classList.remove('show');
-}
+function showPopup() { document.getElementById('popupOverlay').classList.add('show'); }
+function hidePopup() { document.getElementById('popupOverlay').classList.remove('show'); }
 
 async function loadTradeList() {
   const el = document.getElementById('tradeListContent');
@@ -268,31 +249,40 @@ async function loadTradeList() {
     const headers = rows[0];
     const dataRows = rows.slice(1).reverse();
 
-    // Find column indices
-    const ci = (name) => headers.indexOf(name);
-    const iDate = ci('거래일자') !== -1 ? ci('거래일자') : ci('date') !== -1 ? ci('date') : 1;
-    const iType = ci('거래유형') !== -1 ? ci('거래유형') : ci('type') !== -1 ? ci('type') : 4;
-    const iStock = ci('종목코드') !== -1 ? ci('종목코드') : ci('stock') !== -1 ? ci('stock') : 3;
-    const iQty = ci('수량') !== -1 ? ci('수량') : ci('qty') !== -1 ? ci('qty') : 5;
-    const iPrice = ci('단가') !== -1 ? ci('단가') : ci('price') !== -1 ? ci('price') : 6;
+    const ci = (name) => {
+      const idx = headers.indexOf(name);
+      return idx !== -1 ? idx : -1;
+    };
+
+    // Column indices
+    const iId = ci('거래ID');
+    const iDate = ci('거래일자');
+    const iUser = ci('사용자ID');
+    const iAcc = ci('계좌아이디');
+    const iStock = ci('종목코드');
+    const iType = ci('거래유형');
+    const iQty = ci('수량');
+    const iPrice = ci('단가');
 
     el.innerHTML = dataRows.map(r => {
-      const type = r[iType] || '';
+      const type = iType >= 0 ? (r[iType] || '') : '';
       const isBuy = type === '매수' || type === 'buy';
-      const qty = Number(r[iQty] || 0);
-      const price = Number(r[iPrice] || 0);
+      const qty = Number(iQty >= 0 ? (r[iQty] || 0) : 0);
+      const price = Number(iPrice >= 0 ? (r[iPrice] || 0) : 0);
       const total = qty * price;
-      return `<div class="trade-item">
-        <div class="trade-header">
-          <span class="trade-stock">${r[iStock] || '-'}</span>
-          <span class="trade-type-badge ${isBuy ? 'buy' : 'sell'}">${type}</span>
-        </div>
-        <div class="trade-info">
-          <span>${r[iDate] || ''}</span>
-          <span>${qty.toLocaleString()}주 @ ${price.toLocaleString()}원</span>
-        </div>
-        <div class="trade-amount">${total.toLocaleString()}원</div>
-      </div>`;
+      const stock = iStock >= 0 ? (r[iStock] || '-') : '-';
+      const date = iDate >= 0 ? (r[iDate] || '') : '';
+      return '<div class="trade-item">' +
+        '<div class="trade-header">' +
+          '<span class="trade-stock">' + stock + '</span>' +
+          '<span class="trade-type-badge ' + (isBuy ? 'buy' : 'sell') + '">' + type + '</span>' +
+        '</div>' +
+        '<div class="trade-info">' +
+          '<span>' + date + '</span>' +
+          '<span>' + qty.toLocaleString() + '주 @ ' + price.toLocaleString() + '원</span>' +
+        '</div>' +
+        '<div class="trade-amount">' + total.toLocaleString() + '원</div>' +
+      '</div>';
     }).join('');
   } catch(e) {
     el.innerHTML = '<div class="empty"><div class="empty-icon">&#x26A0;&#xFE0F;</div>로딩 실패: ' + e.message + '</div>';
