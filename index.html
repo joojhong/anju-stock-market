@@ -103,28 +103,50 @@ initFilters();
 
 <script>
 async function loadMarketIndices() {
+  const idMap = {'^GSPC': 'idxSPX', '^NDX': 'idxNDX', 'SPMO': 'idxSPMO'};
+  const setIdx = (sym, pct) => {
+    const el = document.getElementById(idMap[sym]);
+    if (!el || pct == null) return;
+    const sign = pct >= 0 ? '+' : '';
+    el.textContent = sign + pct.toFixed(1) + '%';
+    el.className = 'idx-val ' + (pct >= 0 ? 'up' : 'down');
+  };
   try {
-    const symbols = ['^GSPC', '^NDX', 'SPMO'];
-    const tickers = symbols.join(',');
-    const url = 'https://query1.finance.yahoo.com/v7/finance/quote?symbols=' + tickers;
-    const proxyUrl = 'https://api.allorigins.win/get?url=' + encodeURIComponent(url);
-    const res = await fetch(proxyUrl);
+    const tickers = encodeURIComponent('^GSPC,^NDX,SPMO');
+    const url = 'https://query1.finance.yahoo.com/v7/finance/quote?symbols=' + tickers + '&fields=regularMarketChangePercent,regularMarketPrice,regularMarketPreviousClose';
+    const proxy = 'https://corsproxy.io/?' + encodeURIComponent(url);
+    const res = await fetch(proxy);
     const json = await res.json();
-    const data = JSON.parse(json.contents);
-    const quotes = data.quoteResponse?.result || [];
-    const map = {'SPMO': 'idxSPMO', '^GSPC': 'idxSPX', '^NDX': 'idxNDX'};
-    quotes.forEach(q => {
-      const elId = map[q.symbol];
-      if (!elId) return;
-      const el = document.getElementById(elId);
-      if (!el) return;
-      const pct = q.regularMarketChangePercent;
-      if (pct == null) return;
-      const sign = pct >= 0 ? '+' : '';
-      el.textContent = sign + pct.toFixed(1) + '%';
-      el.className = 'idx-val ' + (pct >= 0 ? 'up' : 'down');
+    const quotes = (json.quoteResponse && json.quoteResponse.result) ? json.quoteResponse.result : [];
+    if (quotes.length > 0) {
+      quotes.forEach(q => {
+        let pct = q.regularMarketChangePercent;
+        if (pct == null && q.regularMarketPrice != null && q.regularMarketPreviousClose != null) {
+          pct = (q.regularMarketPrice - q.regularMarketPreviousClose) / q.regularMarketPreviousClose * 100;
+        }
+        setIdx(q.symbol, pct);
+      });
+      return;
+    }
+  } catch(e) {}
+  try {
+    const tickers2 = encodeURIComponent('^GSPC,^NDX,SPMO');
+    const url2 = 'https://query2.finance.yahoo.com/v8/finance/spark?symbols=' + tickers2 + '&range=2d&interval=1d';
+    const proxy2 = 'https://corsproxy.io/?' + encodeURIComponent(url2);
+    const res2 = await fetch(proxy2);
+    const data2 = await res2.json();
+    const results = (data2.spark && data2.spark.result) ? data2.spark.result : [];
+    results.forEach(item => {
+      const closes = item.response && item.response[0] && item.response[0].indicators && item.response[0].indicators.quote && item.response[0].indicators.quote[0] ? item.response[0].indicators.quote[0].close : [];
+      if (!closes || closes.length < 2) return;
+      const valid = closes.filter(c => c != null);
+      if (valid.length < 2) return;
+      const prev = valid[valid.length - 2];
+      const curr = valid[valid.length - 1];
+      const pct = (curr - prev) / prev * 100;
+      setIdx(item.symbol, pct);
     });
-  } catch(e) { console.log('indices load err:', e); }
+  } catch(e2) { console.log('indices err:', e2); }
 }
 loadMarketIndices();
 </script>
