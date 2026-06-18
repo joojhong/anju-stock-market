@@ -34,6 +34,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; b
 .modal .fg label { display: block; font-size: 11px; color: #888; font-weight: 600; margin-bottom: 5px; }
 .modal .fg input, .modal .fg select { width: 100%; padding: 10px 12px; border: 1.5px solid #ddd; border-radius: 8px; font-size: 14px; }
 .modal .fg input:focus, .modal .fg select:focus { outline: none; border-color: #1a1f2e; }
+.modal .fg input[readonly] { background: #f8f9fa; color: #888; cursor: not-allowed; }
 .modal-footer { display: flex; gap: 8px; margin-top: 16px; }
 .modal-footer button { flex: 1; padding: 11px; border: none; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; }
 .btn-cancel { background: #f0f2f5; color: #555; }
@@ -61,7 +62,7 @@ nav a .ic { font-size: 21px; }
   <div class="modal">
     <h3 id="modalTitle">항목 수정</h3>
     <div class="fg">
-      <label>ID</label>
+      <label id="editIdLabel">ID</label>
       <input type="text" id="editId" readonly style="background:#f8f9fa;color:#888;">
     </div>
     <div class="fg">
@@ -86,7 +87,6 @@ nav a .ic { font-size: 21px; }
   <a href="setting.html" class="active"><span class="ic">⚙️</span>설정</a>
   <a href="snapshot.html"><span class="ic">📷</span>스냅샷</a>
 </nav>
-
 <script>
 const GAS = 'https://script.google.com/macros/s/AKfycbw42bSbW1U2SUfta-d1cjYDD5PZG6q4JeIy5yYePRKLXTWU78ueprlss2SjHSK3GpVz6g/exec';
 let editCtx = null;
@@ -130,7 +130,6 @@ function nextId(prefix, existingIds) {
   return prefix + String(maxNum + 1).padStart(3, '0');
 }
 
-// GAS CORS 우회: GET 방식으로 write 액션 호출
 async function gasWrite(body) {
   const res = await fetch(GAS, {
     method: 'POST',
@@ -291,7 +290,6 @@ async function loadLabels() {
         if (fresh['종목']) labelsMap['종목'] = fresh['종목'];
       }
     }
-    // 계좌 시트 별도 로드 (GAS labels API가 계좌를 반환하지 않으므로)
     const acctRes = await fetch(GAS + '?action=readSheet&sheet=' + encodeURIComponent('계좌'));
     const acctText = await acctRes.text();
     if (acctText && acctText.length > 0 && !acctText.startsWith('<')) {
@@ -311,15 +309,15 @@ async function loadLabels() {
       }
     }
     renderSetting(labelsMap);
-  } catch(e) { renderSetting(labelsMap); /* 오류 시에도 렌더링 */ }
+  } catch(e) { renderSetting(labelsMap); }
 }
 
 function updateAccName() {
   const u = document.getElementById('editUser'); const b = document.getElementById('editBank'); const p = document.getElementById('editProd');
   if (!u || !b || !p) return;
-  const uLabel = u.options[u.selectedIndex]?.textContent || u.value || '';
-  const bLabel = b.options[b.selectedIndex]?.textContent || b.value || '';
-  const pLabel = p.options[p.selectedIndex]?.textContent || p.value || '';
+  const uLabel = u.options[u.selectedIndex] ? u.options[u.selectedIndex].textContent : (u.value || '');
+  const bLabel = b.options[b.selectedIndex] ? b.options[b.selectedIndex].textContent : (b.value || '');
+  const pLabel = p.options[p.selectedIndex] ? p.options[p.selectedIndex].textContent : (p.value || '');
   const accName = [uLabel, bLabel, pLabel].filter(Boolean).join(' ');
   document.getElementById('editName').value = accName;
 }
@@ -327,9 +325,46 @@ function updateAccName() {
 function openEdit(type, id, name) {
   editCtx = {type, id};
   document.getElementById('modalTitle').textContent = type === 'account' ? '계좌 수정' : type === 'stock' ? '종목 수정' : '항목 수정';
-  document.getElementById('editId').value = id;
-  document.getElementById('editName').value = name;
-  document.getElementById('editNameLabel').textContent = type === 'account' ? '계좌명' : type === 'stock' ? '종목명' : '이름';
+
+  const editIdEl = document.getElementById('editId');
+  const editIdLabel = document.getElementById('editIdLabel');
+  const editNameEl = document.getElementById('editName');
+  const editNameLabel = document.getElementById('editNameLabel');
+
+  if (type === 'stock') {
+    // 종목 수정: ID 라벨을 "거래소:종목코드"로, 수정 가능하게
+    editIdLabel.textContent = '거래소:종목코드';
+    editIdEl.value = id;
+    editIdEl.readOnly = false;
+    editIdEl.style.background = '';
+    editIdEl.style.color = '';
+    editNameLabel.textContent = '종목명';
+    editNameEl.value = name;
+    editNameEl.readOnly = false;
+    editNameEl.style.background = '';
+  } else if (type === 'account') {
+    // 계좌 수정: ID는 읽기전용(음영), 계좌명은 자동생성(읽기전용+음영)
+    editIdLabel.textContent = 'ID';
+    editIdEl.value = id;
+    editIdEl.readOnly = true;
+    editIdEl.style.background = '#f8f9fa';
+    editIdEl.style.color = '#888';
+    editNameLabel.textContent = '계좌명';
+    editNameEl.value = name;
+    editNameEl.readOnly = true;
+    editNameEl.style.background = '#f8f9fa';
+  } else {
+    // 일반 항목 수정
+    editIdLabel.textContent = 'ID';
+    editIdEl.value = id;
+    editIdEl.readOnly = true;
+    editIdEl.style.background = '#f8f9fa';
+    editIdEl.style.color = '#888';
+    editNameLabel.textContent = '이름';
+    editNameEl.value = name;
+    editNameEl.readOnly = false;
+    editNameEl.style.background = '';
+  }
 
   const extra = document.getElementById('editExtraFields');
   extra.innerHTML = '';
@@ -341,26 +376,24 @@ function openEdit(type, id, name) {
       const fg = document.createElement('div'); fg.className = 'fg';
       const lbl = document.createElement('label'); lbl.textContent = label;
       const sel = document.createElement('select'); sel.id = elId; sel.addEventListener('change', updateAccName);
+      sel.style.background = 'white';
       const opt0 = document.createElement('option'); opt0.value = ''; opt0.textContent = '선택';
       sel.appendChild(opt0);
       makeOpts(labelsMap[label] || {}, acc[field] || '').forEach(o => sel.appendChild(o));
       fg.appendChild(lbl); fg.appendChild(sel);
       extra.appendChild(fg);
     });
-    document.getElementById('editName').readOnly = true;
     updateAccName();
-  } else if (type === 'stock') {
-    const fg2 = document.createElement('div'); fg2.className = 'fg';
-    const lbl2 = document.createElement('label'); lbl2.textContent = '거래소:종목코드';
-    const inp2 = document.createElement('input'); inp2.type = 'text'; inp2.id = 'editStockCode';
-    inp2.placeholder = '예: KRX:438100'; inp2.value = id || '';
-    fg2.appendChild(lbl2); fg2.appendChild(inp2); extra.appendChild(fg2);
-  } else {
-    document.getElementById('editName').readOnly = false;
   }
 
   document.getElementById('editModal').classList.add('active');
-  setTimeout(() => document.getElementById('editName').focus(), 100);
+  setTimeout(() => {
+    if (type === 'stock') {
+      document.getElementById('editId').focus();
+    } else if (type !== 'account') {
+      document.getElementById('editName').focus();
+    }
+  }, 100);
 }
 
 function closeModal() {
@@ -381,8 +414,9 @@ async function saveEdit() {
     payload.bank = (document.getElementById('editBank') || {}).value || '';
     payload.product = (document.getElementById('editProd') || {}).value || '';
   } else if (editCtx.type === 'stock') {
-    const scEl = document.getElementById('editStockCode');
-    if (scEl) payload.code = scEl.value.trim();
+    // 종목 수정: 거래소:종목코드(ID)도 수정 가능
+    const newCode = document.getElementById('editId').value.trim();
+    if (newCode) payload.code = newCode;
   }
 
   try {
@@ -393,6 +427,15 @@ async function saveEdit() {
         if (!labelsMap['계좌']) labelsMap['계좌'] = {};
         const acc = labelsMap['계좌'][editCtx.id] || {};
         labelsMap['계좌'][editCtx.id] = {name, user: payload.user||acc.user, bank: payload.bank||acc.bank, product: payload.product||acc.product};
+      } else if (editCtx.type === 'stock') {
+        if (cat && labelsMap[cat.key]) {
+          // 코드(ID)가 변경된 경우 기존 key 삭제 후 새 key로 추가
+          const newCode = payload.code || editCtx.id;
+          if (newCode !== editCtx.id) {
+            delete labelsMap[cat.key][editCtx.id];
+          }
+          labelsMap[cat.key][newCode] = name;
+        }
       } else if (cat && labelsMap[cat.key]) {
         labelsMap[cat.key][editCtx.id] = name;
       }
