@@ -7,9 +7,13 @@
 <style>
 * { margin: 0; padding: 0; box-sizing: border-box; }
 body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #f0f2f5; color: #333; padding-bottom: 72px; }
-.header { background: #1a1f2e; color: white; padding: 16px 20px; display: flex; align-items: center; gap: 10px; position: sticky; top: 0; z-index: 100; }
+.header { background: #ffffff; color: #1a1f2e; padding: 16px 20px; display: flex; align-items: center; gap: 10px; position: sticky; top: 0; z-index: 100; border-bottom: 1px solid #eee; }
 .header h1 { font-size: 18px; font-weight: 700; flex: 1; }
-.header a { color: rgba(255,255,255,0.65); font-size: 13px; text-decoration: none; padding: 4px 8px; border-radius: 6px; background: rgba(255,255,255,0.1); }
+.header a { color: #666; font-size: 13px; text-decoration: none; padding: 4px 8px; border-radius: 6px; background: rgba(0,0,0,0.06); }
+nav { position: fixed; bottom: 0; left: 0; width: 100%; background: #ffffff; border-top: 1px solid #e0e0e0; display: grid; grid-template-columns: repeat(5, 1fr); z-index: 100; }
+nav a { display: flex; flex-direction: column; align-items: center; padding: 9px 0 7px; text-decoration: none; color: #999; font-size: 10px; gap: 2px; }
+nav a.active { color: #1a1f2e; font-weight: 700; }
+nav a .ic { font-size: 21px; }
 .section { padding: 14px 16px; }
 .form-card { background: white; border-radius: 14px; padding: 16px; box-shadow: 0 1px 4px rgba(0,0,0,.08); margin-bottom: 12px; }
 .tab-bar { display: flex; border-bottom: 1px solid #eee; margin-bottom: 14px; }
@@ -50,7 +54,6 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; b
 <body>
 <div class="header">
   <h1>거래 입력</h1>
-  <a href="index.html">홈</a>
 </div>
 <div class="section">
   <div class="form-card">
@@ -97,6 +100,14 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; b
   </div>
 </div>
 
+<nav>
+  <a href="index.html"><span class="ic">&#x1F4CA;</span>통계</a>
+  <a href="trading.html" class="active"><span class="ic">&#x270F;&#xFE0F;</span>거래입력</a>
+  <a href="history.html"><span class="ic">&#x1F4C8;</span>히스토리</a>
+  <a href="setting.html"><span class="ic">&#x2699;&#xFE0F;</span>설정</a>
+  <a href="snapshot.html"><span class="ic">&#x1F4F7;</span>스낵샷</a>
+</nav>
+
 <div class="popup-overlay" id="popupOverlay">
   <div class="popup-box">
     <div class="popup-icon">&#x2705;</div>
@@ -124,7 +135,7 @@ function setTradeType(t) {
 }
 
 function populateSelectFromObj(id, obj) {
-  const sel = document.getElementById(id);
+  var sel = document.getElementById(id);
   sel.innerHTML = '<option value="">선택하세요</option>';
   Object.entries(obj).forEach(function(entry) {
     var k = entry[0], v = entry[1];
@@ -151,10 +162,22 @@ async function loadLabels() {
   }
 }
 
-// accountRows: [[C001,A001,B001,D003], ...]  cols: 0=계좌ID, 1=사용자ID, 2=금융기관ID, 3=상품ID
 function findAccountId(userId, instId, prodId) {
   var found = accountRows.find(function(r) { return r[1] === userId && r[2] === instId && r[3] === prodId; });
   return found ? found[0] : null;
+}
+
+// UTC ISO 날짜를 KST(+9h) 날짜문자열로 변환
+function formatDateKST(dateStr) {
+  if (!dateStr) return '';
+  var d = new Date(dateStr);
+  if (isNaN(d.getTime())) return dateStr.toString().substring(0, 10);
+  // KST = UTC + 9h
+  var kst = new Date(d.getTime() + 9 * 60 * 60 * 1000);
+  var y = kst.getUTCFullYear();
+  var m = String(kst.getUTCMonth() + 1).padStart(2, '0');
+  var day = String(kst.getUTCDate()).padStart(2, '0');
+  return y + '-' + m + '-' + day;
 }
 
 async function submitTrade() {
@@ -181,6 +204,9 @@ async function submitTrade() {
   btn.textContent = '저장 중...';
 
   try {
+    // GAS addTrading 함수는 수량*단가를 계산해서 거래금액 컴럼에 저장
+    // body['거래금액'] || body['금액'] || 0 형태이므로 둘 다 전달
+    var amount = qty * price;
     var body = {
       action: 'add',
       type: 'trading',
@@ -190,12 +216,13 @@ async function submitTrade() {
       '거래유형': tradeType === 'buy' ? '매수' : '매도',
       '수량': qty,
       '단가': price,
-      '거래금액': qty * price
+      '거래금액': amount,
+      '금액': amount
     };
 
     var res = await fetch(GAS, {
       method: 'POST',
-      headers: { 'Content-Type': 'text/plain' },
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
       body: JSON.stringify(body)
     });
     var data = await res.json();
@@ -245,12 +272,9 @@ async function loadTradeList() {
     var headers = rows[0];
     var dataRows = rows.slice(1).reverse();
 
-    function ci(name) {
-      var idx = headers.indexOf(name);
-      return idx !== -1 ? idx : -1;
-    }
+    function ci(name) { var idx = headers.indexOf(name); return idx !== -1 ? idx : -1; }
 
-    var iDate = ci('날짜'); // 날짜
+    var iDate = ci('날짜');
     var iType = ci('거래유형');
     var iStock = ci('종목코드');
     var iQty = ci('수량');
@@ -264,9 +288,7 @@ async function loadTradeList() {
       var price = Number(iPrice >= 0 ? (r[iPrice] || 0) : 0);
       var amt = Number(iAmt >= 0 ? (r[iAmt] || 0) : 0) || (qty * price);
       var stock = iStock >= 0 ? (r[iStock] || '-') : '-';
-      var date = iDate >= 0 ? (r[iDate] || '') : '';
-      // Format date - handle ISO string
-      if (date && date.indexOf('T') > -1) date = date.substring(0, 10);
+      var date = iDate >= 0 ? formatDateKST(r[iDate]) : '';
       return '<div class="trade-item">' +
         '<div class="trade-header">' +
           '<span class="trade-stock">' + stock + '</span>' +
