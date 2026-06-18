@@ -103,50 +103,39 @@ initFilters();
 
 <script>
 async function loadMarketIndices() {
-  const idMap = {'^GSPC': 'idxSPX', '^NDX': 'idxNDX', 'SPMO': 'idxSPMO'};
-  const setIdx = (sym, pct) => {
-    const el = document.getElementById(idMap[sym]);
-    if (!el || pct == null) return;
-    const sign = pct >= 0 ? '+' : '';
-    el.textContent = sign + pct.toFixed(1) + '%';
-    el.className = 'idx-val ' + (pct >= 0 ? 'up' : 'down');
-  };
-  try {
-    const tickers = encodeURIComponent('^GSPC,^NDX,SPMO');
-    const url = 'https://query1.finance.yahoo.com/v7/finance/quote?symbols=' + tickers + '&fields=regularMarketChangePercent,regularMarketPrice,regularMarketPreviousClose';
-    const proxy = 'https://corsproxy.io/?' + encodeURIComponent(url);
-    const res = await fetch(proxy);
-    const json = await res.json();
-    const quotes = (json.quoteResponse && json.quoteResponse.result) ? json.quoteResponse.result : [];
-    if (quotes.length > 0) {
-      quotes.forEach(q => {
-        let pct = q.regularMarketChangePercent;
-        if (pct == null && q.regularMarketPrice != null && q.regularMarketPreviousClose != null) {
-          pct = (q.regularMarketPrice - q.regularMarketPreviousClose) / q.regularMarketPreviousClose * 100;
+  const symbols = [{sym: '^GSPC', id: 'idxSPX'}, {sym: '^NDX', id: 'idxNDX'}, {sym: 'SPMO', id: 'idxSPMO'}];
+  for (const {sym, id} of symbols) {
+    try {
+      const encSym = encodeURIComponent(sym);
+      const url = 'https://query1.finance.yahoo.com/v8/finance/chart/' + encSym + '?range=2d&interval=1d&includePrePost=false';
+      const proxy = 'https://corsproxy.io/?' + encodeURIComponent(url);
+      const res = await fetch(proxy);
+      const j = await res.json();
+      const result = j.chart && j.chart.result && j.chart.result[0];
+      if (!result) continue;
+      const meta = result.meta;
+      const adjCloses = result.indicators && result.indicators.adjclose && result.indicators.adjclose[0] ? result.indicators.adjclose[0].adjclose : null;
+      const closes = adjCloses || (result.indicators && result.indicators.quote && result.indicators.quote[0] ? result.indicators.quote[0].close : null);
+      let pct = null;
+      if (closes && closes.length >= 2) {
+        const validCloses = closes.filter(c => c != null);
+        if (validCloses.length >= 2) {
+          const prev = validCloses[validCloses.length - 2];
+          const curr = validCloses[validCloses.length - 1];
+          pct = (curr - prev) / prev * 100;
         }
-        setIdx(q.symbol, pct);
-      });
-      return;
-    }
-  } catch(e) {}
-  try {
-    const tickers2 = encodeURIComponent('^GSPC,^NDX,SPMO');
-    const url2 = 'https://query2.finance.yahoo.com/v8/finance/spark?symbols=' + tickers2 + '&range=2d&interval=1d';
-    const proxy2 = 'https://corsproxy.io/?' + encodeURIComponent(url2);
-    const res2 = await fetch(proxy2);
-    const data2 = await res2.json();
-    const results = (data2.spark && data2.spark.result) ? data2.spark.result : [];
-    results.forEach(item => {
-      const closes = item.response && item.response[0] && item.response[0].indicators && item.response[0].indicators.quote && item.response[0].indicators.quote[0] ? item.response[0].indicators.quote[0].close : [];
-      if (!closes || closes.length < 2) return;
-      const valid = closes.filter(c => c != null);
-      if (valid.length < 2) return;
-      const prev = valid[valid.length - 2];
-      const curr = valid[valid.length - 1];
-      const pct = (curr - prev) / prev * 100;
-      setIdx(item.symbol, pct);
-    });
-  } catch(e2) { console.log('indices err:', e2); }
+      }
+      if (pct == null && meta && meta.regularMarketPrice != null && meta.chartPreviousClose != null) {
+        pct = (meta.regularMarketPrice - meta.chartPreviousClose) / meta.chartPreviousClose * 100;
+      }
+      if (pct == null) continue;
+      const el = document.getElementById(id);
+      if (!el) continue;
+      const sign = pct >= 0 ? '+' : '';
+      el.textContent = sign + pct.toFixed(1) + '%';
+      el.className = 'idx-val ' + (pct >= 0 ? 'up' : 'down');
+    } catch(e) { console.log('idx err ' + sym + ':', e.message); }
+  }
 }
 loadMarketIndices();
 </script>
