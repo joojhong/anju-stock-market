@@ -175,10 +175,17 @@ function populateSelectFromObj(id, obj) {
   });
 }
 
-async function loadLabels() {
+function calcAmount() {
+    var qty = Number(document.getElementById('inpQty').value) || 0;
+    var price = Number(document.getElementById('inpPrice').value) || 0;
+    var el = document.getElementById('inpAmount');
+    if (el) el.value = qty * price || '';
+}
+  async function loadLabels() {
   try {
     var labRes = await fetch(GAS + '?action=api&type=labels');
     var accRes = await fetch(GAS + '?action=readSheet&sheet=계좌');
+    
     var lab = await labRes.json();
     var acc = await accRes.json();
     accountRows = (acc.data || []).slice(1);
@@ -330,7 +337,7 @@ async function loadTradeList() {
     var iPrice = ci('단가');
     var iAmt = ci('거래금액');
     var iTradeId = ci('거래ID');
-    var iAccId = ci('금융기관ID');
+    var iAccId = ci('계좌ID');
 
     el.innerHTML = dataRows.map(function(r) {
       var type = iType >= 0 ? (r[iType] || '') : '';
