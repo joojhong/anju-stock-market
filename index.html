@@ -100,41 +100,25 @@ document.getElementById('content').innerHTML=html;
 }
 initFilters();
 </script>
-
 <script>
 async function loadMarketIndices() {
-  const symbols = [{sym: '^GSPC', id: 'idxSPX'}, {sym: '^NDX', id: 'idxNDX'}, {sym: 'SPMO', id: 'idxSPMO'}];
-  for (const {sym, id} of symbols) {
-    try {
-      const encSym = encodeURIComponent(sym);
-      const url = 'https://query1.finance.yahoo.com/v8/finance/chart/' + encSym + '?range=2d&interval=1d&includePrePost=false';
-      const proxy = 'https://corsproxy.io/?' + encodeURIComponent(url);
-      const res = await fetch(proxy);
-      const j = await res.json();
-      const result = j.chart && j.chart.result && j.chart.result[0];
-      if (!result) continue;
-      const meta = result.meta;
-      const adjCloses = result.indicators && result.indicators.adjclose && result.indicators.adjclose[0] ? result.indicators.adjclose[0].adjclose : null;
-      const closes = adjCloses || (result.indicators && result.indicators.quote && result.indicators.quote[0] ? result.indicators.quote[0].close : null);
-      let pct = null;
-      if (closes && closes.length >= 2) {
-        const validCloses = closes.filter(c => c != null);
-        if (validCloses.length >= 2) {
-          const prev = validCloses[validCloses.length - 2];
-          const curr = validCloses[validCloses.length - 1];
-          pct = (curr - prev) / prev * 100;
-        }
-      }
-      if (pct == null && meta && meta.regularMarketPrice != null && meta.chartPreviousClose != null) {h
-        pct = (meta.regularMarketPrice - meta.chartPreviousClose) / meta.chartPreviousClose * 100;
-      }
-      if (pct == null) continue;
-      const el = document.getElementById(id);
-      if (!el) continue;
-      const sign = pct >= 0 ? '+' : '';
+  try {
+    var res = await fetch(GAS_URL + '?action=api&type=indices');
+    var data = await res.json();
+    var map = {SPX: 'idxSPX', NDX: 'idxNDX', SPMO: 'idxSPMO'};
+    data.forEach(function(item) {
+      var id = map[item.name];
+      if (!id) return;
+      var el = document.getElementById(id);
+      if (!el) return;
+      var pct = parseFloat(item.rate);
+      if (isNaN(pct)) return;
+      var sign = pct >= 0 ? '+' : '';
       el.textContent = sign + pct.toFixed(2) + '%';
       el.className = 'idx-val ' + (pct >= 0 ? 'up' : 'down');
-    } catch(e) { console.log('idx err ' + sym + ':', e.message); }
+    });
+  } catch(e) {
+    console.log('지수 로딩 오류:', e.message);
   }
 }
 loadMarketIndices();
