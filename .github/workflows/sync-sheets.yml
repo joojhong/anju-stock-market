@@ -39,45 +39,4 @@ jobs:
           else
             git commit -m "chore: sync Sheets data [skip ci]"
             git push
-          finame: Sync Sheets to JSON
-
-on:
-  repository_dispatch:
-    types: [sheets-updated]
-  schedule:
-    - cron: '*/30 * * * *'
-  workflow_dispatch:
-
-permissions:
-  contents: write
-
-jobs:
-  sync:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Fetch data from Apps Script
-        env:
-          GAS_URL: ${{ secrets.GAS_URL }}
-        run: |
-          mkdir -p public/data
-          curl -sL "$GAS_URL?action=api&type=filters" -o public/data/filters.json
-          curl -sL "$GAS_URL?action=api&type=data&filter=%EC%A0%84%EC%B2%B4" -o public/data/data_all.json
-          curl -sL "$GAS_URL?action=api&type=indices" -o public/data/indices.json
-          curl -sL "$GAS_URL?action=api&type=history" -o public/data/history.json
-          curl -sL "$GAS_URL?action=api&type=snapshots" -o public/data/snapshots.json
-          printf '{"updatedAt":"%s"}' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > public/data/meta.json
-
-      - name: Commit and push if changed
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add public/data/
-          if git diff --staged --quiet; then
-            echo "No changes to commit."
-          else
-            git commit -m "chore: sync Sheets data [skip ci]"
-            git push
           fi
