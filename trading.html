@@ -18,7 +18,7 @@ nav a .ic { font-size: 21px; }
 .form-card { background: white; border-radius: 14px; padding: 16px; box-shadow: 0 1px 4px rgba(0,0,0,.08); margin-bottom: 12px; }
 .tab-bar { display: flex; border-bottom: 1px solid #eee; margin-bottom: 14px; }
 .tab-btn { flex: 1; padding: 10px; background: none; border: none; font-size: 13px; font-weight: 600; color: #999; cursor: pointer; }
-.tab-btn.active { color: #1a1f2e; border-bottom-color: #1a1f2e; }
+.tab-btn.active { color: #1a1f2e; border-bottom: 2px solid #1a1f2e; }
 .tab-content { display: none; }
 .tab-content.active { display: block; }
 .trade-type-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 14px; }
@@ -64,7 +64,7 @@ nav a .ic { font-size: 21px; }
 </style>
 </head>
 <body>
-<div class="header"><span style="font-size:22px">✏️</span><h1>거래 입력</h1><a href="index.html">← 홈</a></div>
+<div class="header"><span style="font-size:22px">&#x270F;&#xFE0F;</span><h1>거래 입력</h1><a href="index.html">&#x2190; 홈</a></div>
 <div class="section">
 <div class="form-card">
 <div class="tab-bar">
@@ -77,10 +77,10 @@ nav a .ic { font-size: 21px; }
 <button class="trade-type-btn sell" onclick="setTradeType('sell')">매도</button>
 </div>
 <div class="form-group"><label>날짜</label><input type="date" id="inpDate"></div>
-<div class="form-group"><label>사용자</label><select id="selUser"><option value="">로딩 중...</option></select></div>
-<div class="form-group"><label>금융기관</label><select id="selInst"><option value="">로딩 중...</option></select></div>
-<div class="form-group"><label>상품</label><select id="selProd"><option value="">로딩 중...</option></select></div>
-<div class="form-group"><label>종목</label><select id="selStock"><option value="">로딩 중...</option></select></div>
+<div class="form-group"><label>사용자</label><select id="selUser"><option value="">선택하세요</option></select></div>
+<div class="form-group"><label>금융기관</label><select id="selInst"><option value="">선택하세요</option></select></div>
+<div class="form-group"><label>상품</label><select id="selProd"><option value="">선택하세요</option></select></div>
+<div class="form-group"><label>종목</label><select id="selStock"><option value="">선택하세요</option></select></div>
 <div class="form-group"><label>수량</label><input type="number" id="inpQty" placeholder="0" min="1" oninput="calcAmount()"></div>
 <div class="form-group"><label>단가 (원)</label><input type="number" id="inpPrice" placeholder="0" min="0" oninput="calcAmount()"></div>
 <div class="form-group"><label>금액 (원)</label><input type="number" id="inpAmount" placeholder="0" readonly style="background:#f8f8f8;color:#1a1f2e;font-weight:700;"></div>
@@ -93,17 +93,17 @@ nav a .ic { font-size: 21px; }
 </div>
 <div id="popupOverlay" class="popup-overlay">
 <div class="popup-box">
-<div class="popup-icon" id="popupIcon">✅</div>
+<div class="popup-icon" id="popupIcon">&#x2705;</div>
 <div class="popup-title" id="popupTitle">저장 완료</div>
 <div class="popup-msg" id="popupMsg"></div>
 </div>
 </div>
 <nav>
-<a href="index.html"><span class="ic">📊</span>통계</a>
-<a href="trading.html" class="active"><span class="ic">✏️</span>거래입력</a>
-<a href="history.html"><span class="ic">📈</span>히스토리</a>
-<a href="setting.html"><span class="ic">⚙️</span>설정</a>
-<a href="snapshot.html"><span class="ic">🗃️</span>스냅샷</a>
+<a href="index.html"><span class="ic">&#x1F4CA;</span>통계</a>
+<a href="trading.html" class="active"><span class="ic">&#x270F;&#xFE0F;</span>거래입력</a>
+<a href="history.html"><span class="ic">&#x1F4C8;</span>히스토리</a>
+<a href="setting.html"><span class="ic">&#x2699;&#xFE0F;</span>설정</a>
+<a href="snapshot.html"><span class="ic">&#x1F5C3;&#xFE0F;</span>스냅샷</a>
 </nav>
 <script>
 const GAS = 'https://script.google.com/macros/s/AKfycbw42bSbW1U2Sufta-d1cjYDD5PZG6q4JeIy5yYePRKLXTWU78ueprlss2SjHSK3GpVz6g/exec';
@@ -124,19 +124,21 @@ function setTradeType(t){tradeType=t;document.querySelectorAll('.trade-type-btn'
 function populateSelectFromObj(id,obj){var sel=document.getElementById(id);sel.innerHTML='<option value="">선택하세요</option>';Object.entries(obj).forEach(([k,v])=>{var o=document.createElement('option');o.value=k;o.textContent=v;sel.appendChild(o);});}
 function calcAmount(){var q=Number(document.getElementById('inpQty').value)||0,p=Number(document.getElementById('inpPrice').value)||0,el=document.getElementById('inpAmount');if(el)el.value=q*p||'';}
 async function initPage(){
+  const d=document.getElementById('inpDate');if(d&&!d.value)d.value=getTodayStr();
   try{
     var lab = await fetchJSON(STATIC_BASE+'/labels.json', GAS+'?action=api&type=labels');
-    var accRes = await fetch(GAS+'?action=readSheet&sheet=계좌');
-    var acc = await accRes.json();
-    accountRows=(acc.data||[]).slice(1);
     labelsCache=lab;
     populateSelectFromObj('selUser',lab['사용자']||{});
     populateSelectFromObj('selInst',lab['금융기관']||{});
     populateSelectFromObj('selProd',lab['상품']||{});
     populateSelectFromObj('selStock',lab['종목']||{});
     stockMap=lab['종목']||{};
-  }catch(e){console.error('라벨 로드 오류:',e);}
-  const d=document.getElementById('inpDate');if(d&&!d.value)d.value=getTodayStr();
+    try{
+      var accRes = await fetch(GAS+'?action=readSheet&sheet=계좌');
+      var acc = await accRes.json();
+      accountRows=(acc.data||[]).slice(1);
+    }catch(e2){}
+  }catch(e){console.error('initPage error:',e);}
 }
 function formatDateKST(s){if(!s)return'';var d=new Date(s);if(isNaN(d.getTime()))return String(s).substring(0,10);var k=new Date(d.getTime()+9*60*60*1000);return k.getUTCFullYear()+'-'+String(k.getUTCMonth()+1).padStart(2,'0')+'-'+String(k.getUTCDate()).padStart(2,'0');}
 async function loadTradeList(){
@@ -146,29 +148,29 @@ async function loadTradeList(){
     var res=await fetch(GAS+'?action=readSheet&sheet=거래내역');
     var data=await res.json();
     var rows=data.data||[];
-    if(rows.length<=1){el.innerHTML='<div class="empty"><div class="empty-icon">📭</div>거래 내역이 없습니다.</div>';return;}
+    if(rows.length<=1){el.innerHTML='<div class="empty"><div class="empty-icon">&#x1F4ED;</div>거래 내역이 없습니다.</div>';return;}
     var headers=rows[0],dataRows=rows.slice(1).reverse();
     function ci(n){var i=headers.indexOf(n);return i!==-1?i:-1;}
     var iDate=ci('날짜'),iType=ci('거래유형'),iStock=ci('종목코드'),iQty=ci('수량'),iPrice=ci('단가'),iAmt=ci('거래금액'),iTid=ci('거래ID'),iAid=ci('계좌ID');
     var html='';
     dataRows.forEach(function(r){
-            var type=iType>=0?(r[iType]||''):'',stockId=iStock>=0?(r[iStock]||''):'';
+      var type=iType>=0?(r[iType]||''):'',stockId=iStock>=0?(r[iStock]||''):'';
       var stockName=(stockMap&&stockMap[stockId])||stockId;
       var uName='',bName='',pName='';
-      if(labelsCache&&accountRows.length>0){var av=iAid>=0?r[iAid]:'',ar=accountRows.find(row=>row[2]===av);if(ar){uName=(labelsCache['사용자']&&labelsCache['사용자'][ar[0]])||ar[0]||'';bName=ar[3]||'';pName=ar[4]||'';}}
+      if(labelsCache&&accountRows.length>0){var av=iAid>=0?r[iAid]:'',ar=accountRows.find(function(row){return row[2]===av;});if(ar){uName=(labelsCache['사용자']&&labelsCache['사용자'][ar[0]])||ar[0]||'';bName=ar[3]||'';pName=ar[4]||'';}}
       var tid=iTid>=0?r[iTid]:'';
       html+='<div class="trade-item"><div class="trade-header"><span class="trade-stock">'+stockName+'</span><span class="trade-type-badge '+(type==='매수'?'buy':'sell')+'">'+type+'</span></div>';
       html+='<div class="trade-info"><span>'+formatDateKST(iDate>=0?r[iDate]:'')+' </span>';
       if(iQty>=0)html+='<span>'+(r[iQty]||0)+'주</span>';
       if(iPrice>=0)html+='<span>@'+Number(r[iPrice]||0).toLocaleString()+'원</span>';
       html+='</div>';
-      if(iAmt>=0)html+='<div class="trade-amount">₩'+Number(r[iAmt]||0).toLocaleString()+'</div>';
+      if(iAmt>=0)html+='<div class="trade-amount">&#x20A9;'+Number(r[iAmt]||0).toLocaleString()+'</div>';
       if(uName||bName)html+='<div class="trade-account">'+[uName,bName,pName].filter(Boolean).join(' · ')+'</div>';
       if(tid)html+='<div class="trade-del-wrap"><button class="btn-del-trade" onclick="confirmDeleteTrade(''+tid+'')">삭제</button></div>';
       html+='</div>';
     });
     el.innerHTML=html;
-  }catch(e){el.innerHTML='<div class="empty"><div class="empty-icon">⚠️</div>로드 실패: '+e.message+'</div>';}
+  }catch(e){el.innerHTML='<div class="empty"><div class="empty-icon">&#x26A0;&#xFE0F;</div>로드 실패: '+e.message+'</div>';}
 }
 function showPopup(i,t,m){document.getElementById('popupIcon').textContent=i;document.getElementById('popupTitle').textContent=t;document.getElementById('popupMsg').textContent=m||'';document.getElementById('popupOverlay').classList.add('show');}
 function hidePopup(){document.getElementById('popupOverlay').classList.remove('show');}
@@ -182,7 +184,7 @@ async function submitTrade(){
   var body={action:'addTrading','날짜':d,'사용자ID':u,'금융기관ID':ins,'상품ID':pr,'종목코드':st,'거래유형':tradeType==='buy'?'매수':'매도','수량':q,'단가':p,'거래금액':a,'금액':a};
   var res=await fetch(GAS,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(body)});
   var data=await res.json();
-  if(data.result==='success'||data.success||data.id){showPopup('✅','저장 완료','거래가 저장되었습니다.');resetForm();setTimeout(()=>{hidePopup();switchTab('list');},1500);}
+  if(data.result==='success'||data.success||data.id){showPopup('&#x2705;','저장 완료','거래가 저장되었습니다.');resetForm();setTimeout(function(){hidePopup();switchTab('list');},1500);}
   else{alert('저장 실패: '+(data.message||JSON.stringify(data)));}
 }
 var _delId=null;
