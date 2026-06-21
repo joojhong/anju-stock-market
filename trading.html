@@ -152,7 +152,7 @@ async function loadTradeList(){
     var iDate=ci('날짜'),iType=ci('거래유형'),iStock=ci('종목코드'),iQty=ci('수량'),iPrice=ci('단가'),iAmt=ci('거래금액'),iTid=ci('거래ID'),iAid=ci('계좌ID');
     var html='';
     dataRows.forEach(function(r){
-      var type=iType>=0?(r[iType]||')':'',stockId=iStock>=0?(r[iStock]||'):'';
+            var type=iType>=0?(r[iType]||''):'',stockId=iStock>=0?(r[iStock]||''):'';
       var stockName=(stockMap&&stockMap[stockId])||stockId;
       var uName='',bName='',pName='';
       if(labelsCache&&accountRows.length>0){var av=iAid>=0?r[iAid]:'',ar=accountRows.find(row=>row[2]===av);if(ar){uName=(labelsCache['사용자']&&labelsCache['사용자'][ar[0]])||ar[0]||'';bName=ar[3]||'';pName=ar[4]||'';}}
