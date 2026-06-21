@@ -3,11 +3,11 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="mobile-web-app-capable" content="yes">
-    <meta name="theme-color" content="#1a1f2e">
-    <link rel="manifest" href="manifest.json">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#1a1f2e">
+<link rel="manifest" href="manifest.json">
 <title>안주주식마켓</title>
 <style>
 * { margin:0; padding:0; box-sizing:border-box; }
@@ -60,51 +60,99 @@ nav a .ic { font-size:21px; }
 </nav>
 <script>
 var GAS_URL='https://script.google.com/macros/s/AKfycbz3VGPAtks3tzPOwdL2qq_-7CmL-DZNzVckv05adQvK-Q6C_k9_E_oPXraZi55P2lvrPw/exec';
+var STATIC_BASE='public/data';
+var _cachedFilters=null;
+var _cachedData={};
+
 function num(n){return Math.round(n).toLocaleString('ko-KR');}
 function rate(r){return(r>=0?'+':'')+r.toFixed(2)+'%';}
 function cls(v){return v>=0?'up':'down';}
+
+// 정적 JSON fetch (실패 시 GAS 폴백)
+async function fetchJSON(staticPath, gasParams) {
+  try {
+    var res = await fetch(staticPath + '?_=' + Date.now());
+    if (res.ok) {
+      var data = await res.json();
+      if (data && !data.error) return data;
+    }
+  } catch(e) {}
+  // 폴백: GAS 직접 호출
+  var res2 = await fetch(GAS_URL + '?' + gasParams);
+  return await res2.json();
+}
+
 function loadData(){
-var filter=document.getElementById('userFilter').value;
-document.getElementById('content').innerHTML='<div class="loading">⏳ 불러오는 중...</div>';
-fetch(GAS_URL+'?action=api&type=data&filter='+encodeURIComponent(filter))
-.then(function(r){return r.json();}).then(render)
-.catch(function(e){document.getElementById('content').innerHTML='<div class="loading">❌ 오류: '+e.message+'</div>';});
+  var filter=document.getElementById('userFilter').value;
+  document.getElementById('content').innerHTML='<div class="loading">⏳ 불러오는 중...</div>';
+
+  // 낙관적 업데이트: 캐시된 데이터가 있으면 즉시 표시
+  if(_cachedData[filter]) {
+    render(_cachedData[filter]);
+  }
+
+  // 정적 JSON 우선, 폴백으로 GAS
+  fetchJSON(STATIC_BASE+'/data_all.json', 'action=api&type=data&filter='+encodeURIComponent(filter))
+  .then(function(data){
+    // data_all.json에서 필터 적용이 안 되므로 필터 처리
+    if(filter !== '전체' && data.종목목록) {
+      // 필터가 있으면 GAS 직접 호출
+      return fetch(GAS_URL+'?action=api&type=data&filter='+encodeURIComponent(filter))
+        .then(function(r){return r.json();});
+    }
+    return data;
+  })
+  .then(function(data){
+    _cachedData[filter] = data;
+    render(data);
+  })
+  .catch(function(e){document.getElementById('content').innerHTML='<div class="loading">❌ 오류: '+e.message+'</div>';});
 }
+
 function initFilters(){
-fetch(GAS_URL+'?action=api&type=filters')
-.then(function(r){return r.json();})
-.then(function(options){
-var sel=document.getElementById('userFilter');
-sel.innerHTML='';
-options.forEach(function(opt){var o=document.createElement('option');o.value=opt.value;o.text=opt.label;sel.appendChild(o);});
-loadData();
-}).catch(function(){document.getElementById('userFilter').innerHTML='<option value="전체">👥 전체</option>';loadData();});
+  fetchJSON(STATIC_BASE+'/filters.json', 'action=api&type=filters')
+  .then(function(options){
+    _cachedFilters = options;
+    var sel=document.getElementById('userFilter');
+    sel.innerHTML='';
+    options.forEach(function(opt){var o=document.createElement('option');o.value=opt.value;o.text=opt.label;sel.appendChild(o);});
+    loadData();
+  }).catch(function(){document.getElementById('userFilter').innerHTML='<option value="전체">👥 전체</option>';loadData();});
 }
+
 function render(data){
-var t=data.통계;
-var html='<div class="stats-grid">';
-html+='<div class="stat-card full"><div class="stat-label">💰 총 평가액</div><div class="stat-value">₩'+num(t.총평가액)+'</div></div>';
-html+='<div class="stat-card"><div class="stat-label">📈 손익금</div><div class="stat-value '+cls(t.손익금)+'">'+(t.손익금>=0?'+':'')+'₩'+num(t.손익금)+'</div></div>';
-html+='<div class="stat-card"><div class="stat-label">📊 손익률</div><div class="stat-value '+cls(t.손익률)+'">'+rate(t.손익률)+'</div></div>';
-html+='<div class="stat-card"><div class="stat-label">📉 전일대비</div><div class="stat-value '+cls(t.전일대비금액)+'">'+(t.전일대비금액>=0?'+':'')+'₩'+num(t.전일대비금액)+'</div></div>';
-html+='<div class="stat-card"><div class="stat-label">🔄 전일대비율</div><div class="stat-value '+cls(t.전일대비율)+'">'+rate(t.전일대비율)+'</div></div>';
-html+='</div>';
-html+='<div class="section">📈 보유 종목</div><div class="stock-list">';
-data.종목목록.forEach(function(s){
-var qty=s.보유수량?(' | '+s.보유수량+'주'):'';
-html+='<div class="stock-item"><div class="stock-info"><div class="stock-name">'+s.종목명+'</div><div class="stock-price">현재가 ₩'+num(s.현재가)+qty+'</div></div>';
-html+='<div class="stock-vals"><div class="stock-eval">₩'+num(s.평가액)+'</div><div class="stock-rates"><span class="'+cls(s.손익률)+'">'+rate(s.손익률)+'</span> | <span class="'+cls(s.전일대비율)+'">'+rate(s.전일대비율)+'</span></div></div></div>';
-});
-html+='</div>';
-document.getElementById('content').innerHTML=html;
+  var t=data.통계;
+  var html='<div class="stats-grid">';
+  html+='<div class="stat-card full"><div class="stat-label">💰 총 평가액</div><div class="stat-value">₩'+num(t.총평가액)+'</div></div>';
+  html+='<div class="stat-card"><div class="stat-label">📈 손익금</div><div class="stat-value '+cls(t.손익금)+'">'+(t.손익금>=0?'+':'')+'₩'+num(t.손익금)+'</div></div>';
+  html+='<div class="stat-card"><div class="stat-label">📊 손익률</div><div class="stat-value '+cls(t.손익률)+'">'+rate(t.손익률)+'</div></div>';
+  html+='<div class="stat-card"><div class="stat-label">📉 전일대비</div><div class="stat-value '+cls(t.전일대비금액)+'">'+(t.전일대비금액>=0?'+':'')+'₩'+num(t.전일대비금액)+'</div></div>';
+  html+='<div class="stat-card"><div class="stat-label">🔄 전일대비율</div><div class="stat-value '+cls(t.전일대비율)+'">'+rate(t.전일대비율)+'</div></div>';
+  html+='</div>';
+  html+='<div class="section">📈 보유 종목</div><div class="stock-list">';
+  data.종목목록.forEach(function(s){
+    var qty=s.보유수량?(' | '+s.보유수량+'주'):'';
+    html+='<div class="stock-item"><div class="stock-info"><div class="stock-name">'+s.종목명+'</div><div class="stock-price">현재가 ₩'+num(s.현재가)+qty+'</div></div>';
+    html+='<div class="stock-vals"><div class="stock-eval">₩'+num(s.평가액)+'</div><div class="stock-rates"><span class="'+cls(s.손익률)+'">'+rate(s.손익률)+'</span> | <span class="'+cls(s.전일대비율)+'">'+rate(s.전일대비율)+'</span></div></div></div>';
+  });
+  html+='</div>';
+  document.getElementById('content').innerHTML=html;
 }
+
 initFilters();
 </script>
 <script>
 async function loadMarketIndices() {
   try {
-    var res = await fetch(GAS_URL + '?action=api&type=indices');
-    var data = await res.json();
+    var data;
+    try {
+      var res = await fetch(STATIC_BASE + '/indices.json?_=' + Date.now());
+      if (res.ok) { data = await res.json(); }
+    } catch(e) {}
+    if (!data || data.error) {
+      var res2 = await fetch(GAS_URL + '?action=api&type=indices');
+      data = await res2.json();
+    }
     var map = {SPX: 'idxSPX', NDX: 'idxNDX', SPMO: 'idxSPMO'};
     data.forEach(function(item) {
       var id = map[item.name];
@@ -117,9 +165,7 @@ async function loadMarketIndices() {
       el.textContent = sign + pct.toFixed(2) + '%';
       el.className = 'idx-val ' + (pct >= 0 ? 'up' : 'down');
     });
-  } catch(e) {
-    console.log('지수 로딩 오류:', e.message);
-  }
+  } catch(e) {}
 }
 loadMarketIndices();
 </script>
