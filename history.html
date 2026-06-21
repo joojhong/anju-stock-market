@@ -43,44 +43,18 @@ nav a .ic{font-size:21px}
 </style>
 </head>
 <body>
-<div class="header">
-<span style="font-size:22px">&#x1F4C8;</span>
-<h1>평가액 히스토리</h1>
-<a href="index.html">&#x2190; 홈</a>
-</div>
+<div class="header"><span style="font-size:22px">&#x1F4C8;</span><h1>평가액 히스토리</h1><a href="index.html">&#x2190; 홈</a></div>
 <div class="section">
 <div class="filter-card">
 <div class="filter-title">&#x1F50D; 필터 조건</div>
 <div class="filter-grid">
-<div class="filter-group span2">
-<label>&#x1F4C5; 기간</label>
-<div class="date-row">
-<input type="date" id="dateFrom">
-<span class="date-sep">~</span>
-<input type="date" id="dateTo">
+<div class="filter-group span2"><label>&#x1F4C5; 기간</label><div class="date-row"><input type="date" id="dateFrom"><span class="date-sep">~</span><input type="date" id="dateTo"></div></div>
+<div class="filter-group"><label>&#x1F464; 사용자</label><select id="fUser"><option value="">전체</option></select></div>
+<div class="filter-group"><label>&#x1F3E6; 금융기관</label><select id="fInstitution"><option value="">전체</option></select></div>
+<div class="filter-group"><label>&#x1F4E6; 상품</label><select id="fProduct"><option value="">전체</option></select></div>
+<div class="filter-group"><label>&#x1F4CA; 종목</label><select id="fStock"><option value="">전체</option></select></div>
 </div>
-</div>
-<div class="filter-group">
-<label>&#x1F464; 사용자</label>
-<select id="fUser"><option value="">전체</option></select>
-</div>
-<div class="filter-group">
-<label>&#x1F3E6; 금융기관</label>
-<select id="fInstitution"><option value="">전체</option></select>
-</div>
-<div class="filter-group">
-<label>&#x1F4E6; 상품</label>
-<select id="fProduct"><option value="">전체</option></select>
-</div>
-<div class="filter-group">
-<label>&#x1F4CA; 종목</label>
-<select id="fStock"><option value="">전체</option></select>
-</div>
-</div>
-<div class="btn-row">
-<button class="btn-reset" onclick="resetFilters()">초기화</button>
-<button class="btn-apply" onclick="applyFilter()">&#x1F4CA; 차트 조회</button>
-</div>
+<div class="btn-row"><button class="btn-reset" onclick="resetFilters()">초기화</button><button class="btn-apply" onclick="applyFilter()">&#x1F4CA; 차트 조회</button></div>
 </div>
 <div id="summaryArea"></div>
 <div id="chartArea"><div class="loading">&#x23F3; 데이터 불러오는 중...</div></div>
@@ -99,217 +73,13 @@ var allData=[],myChart=null,labelsMap={사용자:{},금융기관:{},상품:{},�
 function num(n){return Math.round(n).toLocaleString('ko-KR');}
 function fmtDate(d){if(!d)return'';if(d.indexOf('/')!==-1){var p=d.split('/');return p[0]+'-'+p[1].padStart(2,'0')+'-'+p[2].padStart(2,'0');}return d.split('T')[0];}
 (function(){var now=new Date(),y1=new Date(now);y1.setFullYear(now.getFullYear()-1);document.getElementById('dateTo').value=now.toISOString().split('T')[0];document.getElementById('dateFrom').value=y1.toISOString().split('T')[0];})();
-async function fetchJSON(staticPath, gasUrl) {
-  try { const r = await fetch(staticPath + '?_=' + Date.now()); if (r.ok) { const d = await r.json(); if (!d.error) return d; } } catch(e) {}
-  const r2 = await fetch(gasUrl);
-  return r2.json();
-}
-function loadLabels(cb){
-  fetchJSON(STATIC_BASE+'/labels.json', GAS+'?action=api&type=labels')
-    .then(function(data){ labelsMap=data; cb(); })
-    .catch(function(){ cb(); });
-}
-function loadSnapshot(){
-  document.getElementById('chartArea').innerHTML='<div class="loading">&#x23F3; 데이터 불러오는 중...</div>';
-  document.getElementById('summaryArea').innerHTML='';
-  fetchJSON(STATIC_BASE+'/history.json', GAS+'?action=api&type=snapshot')
-    .then(function(data){allData=data;populateFilters(data);applyFilter();})
-    .catch(function(e){document.getElementById('chartArea').innerHTML='<div class="error-msg">데이터 로드 실패</div>';});
-}
-function populateFilters(data){
-  var users=[],insts=[],prods=[],stocks=[];
-  data.forEach(function(r){
-    if(r.사용자ID&&users.indexOf(r.사용자ID)===-1)users.push(r.사용자ID);
-    if(r.금융기관ID&&insts.indexOf(r.금융기관ID)===-1)insts.push(r.금융기관ID);
-    if(r.상품ID&&prods.indexOf(r.상품ID)===-1)prods.push(r.상품ID);
-    if(r.종목코드&&stocks.indexOf(r.종목코드)===-1)stocks.push(r.종목코드);
-  });
-  function fill(id,arr,labelKey){var sel=document.getElementById(id);sel.innerHTML='<option value="">전체</option>';arr.forEach(function(k){var opt=document.createElement('option');opt.value=k;opt.textContent=(labelsMap[labelKey]&&labelsMap[labelKey][k])||k;sel.appendChild(opt);});}
-  fill('fUser',users,'사용자');fill('fInstitution',insts,'금융기관');fill('fProduct',prods,'상품');fill('fStock',stocks,'종목');
-}
-function applyFilter(){
-  var from=document.getElementById('dateFrom').value,to=document.getElementById('dateTo').value;
-  var user=document.getElementById('fUser').value,inst=document.getElementById('fInstitution').value;
-  var prod=document.getElementById('fProduct').value,stock=document.getElementById('fStock').value;
-  var filtered=allData.filter(function(r){var d=fmtDate(r.날짜);if(from&&d<from)return false;if(to&&d>to)return false;if(user&&r.사용자ID!==user)return false;if(inst&&r.금융기관ID!==inst)return false;if(prod&&r.상품ID!==prod)return false;if(stock&&r.종목코드!==stock)return false;return true;});
-  renderChart(filtered);
-}
+async function fetchJSON(staticPath,gasUrl){try{const r=await fetch(staticPath+'?_='+Date.now());if(r.ok){const d=await r.json();if(!d.error)return d;}}catch(e){}const r2=await fetch(gasUrl);return r2.json();}
+function loadLabels(cb){fetchJSON(STATIC_BASE+'/labels.json',GAS+'?action=api&type=labels').then(function(data){labelsMap=data;cb();}).catch(function(){cb();});}
+function loadSnapshot(){document.getElementById('chartArea').innerHTML='<div class="loading">&#x23F3; 데이터 불러오는 중...</div>';document.getElementById('summaryArea').innerHTML='';fetchJSON(STATIC_BASE+'/history.json',GAS+'?action=api&type=snapshot').then(function(data){allData=data;populateFilters(data);applyFilter();}).catch(function(e){document.getElementById('chartArea').innerHTML='<div class="error-msg">데이터 로드 실패</div>';});}
+function populateFilters(data){var users=[],insts=[],prods=[],stocks=[];data.forEach(function(r){if(r.사용자ID&&users.indexOf(r.사용자ID)===-1)users.push(r.사용자ID);if(r.금융기관ID&&insts.indexOf(r.금융기관ID)===-1)insts.push(r.금융기관ID);if(r.상품ID&&prods.indexOf(r.상품ID)===-1)prods.push(r.상품ID);if(r.종목코드&&stocks.indexOf(r.종목코드)===-1)stocks.push(r.종목코드);});function fill(id,arr,labelKey){var sel=document.getElementById(id);sel.innerHTML='<option value="">전체</option>';arr.forEach(function(k){var opt=document.createElement('option');opt.value=k;opt.textContent=(labelsMap[labelKey]&&labelsMap[labelKey][k])||k;sel.appendChild(opt);});}fill('fUser',users,'사용자');fill('fInstitution',insts,'금융기관');fill('fProduct',prods,'상품');fill('fStock',stocks,'종목');}
+function applyFilter(){var from=document.getElementById('dateFrom').value,to=document.getElementById('dateTo').value;var user=document.getElementById('fUser').value,inst=document.getElementById('fInstitution').value;var prod=document.getElementById('fProduct').value,stock=document.getElementById('fStock').value;var filtered=allData.filter(function(r){var d=fmtDate(r.날짜);if(from&&d<from)return false;if(to&&d>to)return false;if(user&&r.사용자ID!==user)return false;if(inst&&r.금융기관ID!==inst)return false;if(prod&&r.상품ID!==prod)return false;if(stock&&r.종목코드!==stock)return false;return true;});renderChart(filtered);}
 function resetFilters(){var now=new Date(),y1=new Date(now);y1.setFullYear(now.getFullYear()-1);document.getElementById('dateTo').value=now.toISOString().split('T')[0];document.getElementById('dateFrom').value=y1.toISOString().split('T')[0];['fUser','fInstitution','fProduct','fStock'].forEach(function(id){document.getElementById(id).value='';});applyFilter();}
-function renderChart(data){
-  if(!data||!data.length){document.getElementById('summaryArea').innerHTML='';document.getElementById('chartArea').innerHTML='<div class="error-msg">조회 결과가 없습니다.</div>';return;}
-  var byDate={};
-  data.forEach(function(r){var d=fmtDate(r.날짜);if(!byDate[d])byDate[d]=0;byDate[d]+=Number(r.평가액)||0;});
-  var dates=Object.keys(byDate).sort();
-  var vals=dates.map(function(d){return byDate[d];});
-  var first=vals[0]||0,last=vals[vals.length-1]||0,diff=last-first,pct=first?((diff/first)*100):0;
-  var sHtml='<div class="summary-card"><div><div class="lbl">조회 결과 총 평가액</div><div class="val">&#x20A9;'+num(last)+'</div></div><div style="text-align:right"><div class="lbl">기간 변화</div><div class="val" style="font-size:16px;color:'+(diff>=0?'#e53935':'#3498db')+'">'+(diff>=0?'&#x25B2; + ':'&#x25BC; ')+' &#x20A9;'+num(Math.abs(diff))+'</div><div class="chg" style="color:'+(diff>=0?'#e53935':'#3498db')+'">('+(pct>=0?'+':'')+pct.toFixed(2)+'%)</div></div></div>';
-  document.getElementById('summaryArea').innerHTML=sHtml;
-  var cHtml='<div class="chart-card"><div class="chart-top"><div><div class="chart-title">&#x1F4C8; 평가액 추이</div><div class="chart-sub">날짜별 필터 조건 평가액 합산</div></div><span class="chart-pts">'+dates.length+' 포인트</span></div><canvas id="myChart"></canvas></div>';
-  document.getElementById('chartArea').innerHTML=cHtml;
-  if(myChart){myChart.destroy();myChart=null;}
-  var ctx=document.getElementById('myChart').getContext('2d');
-  myChart=new Chart(ctx,{type:'line',data:{labels:dates,datasets:[{label:'평가액',data:vals,borderColor:'#1a1f2e',backgroundColor:'rgba(26,31,46,0.08)',tension:0.3,pointRadius:dates.length>60?0:4,fill:true}]},options:{responsive:true,plugins:{legend:{display:false},tooltip:{callbacks:{label:function(c){return'&#x20A9;'+num(c.raw);}}}},scales:{x:{ticks:{maxTicksLimit:8,maxRotation:0}},y:{ticks:{callback:function(v){return'&#x20A9;'+num(v);}}}}}});
-}
-loadLabels(loadSnapshot);
-</script>
-</body>
-</html>!DOCTYPE html>
-<html lang="ko">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">  <meta name="apple-mobile-web-app-capable" content="yes">  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<title>평가액 히스토리 – 안주주식마켓</title>
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
-<style>
-*{margin:0;padding:0;box-sizing:border-box}
-body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f0f2f5;color:#333;padding-bottom:72px}
-.header{background:#ffffff;color:#1a1f2e;padding:16px 20px;display:flex;align-items:center;gap:10px;position:sticky;top:0;z-index:100;border-bottom:1px solid #eee}
-.header h1{font-size:18px;font-weight:700;flex:1}
-.header a{color:#666;font-size:13px;text-decoration:none;padding:4px 8px;border-radius:6px;background:rgba(255,255,255,0.1)}
-.filter-section{background:white;padding:16px 20px 12px;border-bottom:1px solid #e8eaed}
-.filter-title{font-size:11px;font-weight:700;color:#80868b;text-transform:uppercase;letter-spacing:0.8px;margin-bottom:14px}
-.filter-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-.filter-group{display:flex;flex-direction:column;gap:5px}
-.filter-group.span2{grid-column:1/-1}
-.filter-group label{font-size:11px;color:#80868b;font-weight:600}
-.date-row{display:grid;grid-template-columns:1fr 16px 1fr;align-items:center;gap:4px}
-.date-sep{font-size:11px;color:#bbb;text-align:center}
-select,input[type=date]{width:100%;padding:8px 10px;border:1.5px solid #e8eaed;border-radius:8px;font-size:13px;background:white}
-select:focus,input[type=date]:focus{outline:none;border-color:#1a1f2e}
-.btn-row{display:flex;gap:8px;margin-top:14px}
-.btn-reset{flex:1;padding:8px;border:1.5px solid #e0e0e0;border-radius:8px;background:white;font-size:13px;cursor:pointer}
-.btn-apply{flex:2;padding:8px;background:#1a1f2e;color:white;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer}
-.section{padding:14px 16px}
-.summary-card{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px}
-.summary-card .lbl{font-size:11px;color:#80868b;margin-bottom:4px}
-.summary-card .val{font-size:18px;font-weight:700;color:#1a1f2e}
-.summary-card .chg{font-size:12px}
-.chart-card{background:white;border-radius:14px;padding:16px;box-shadow:0 1px 4px rgba(0,0,0,.08);margin-bottom:12px}
-.chart-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px}
-.chart-title{font-size:14px;font-weight:700;color:#1a1f2e;margin-bottom:4px}
-.chart-sub{font-size:11px;color:#888;margin-bottom:16px}
-.loading{text-align:center;color:#999;padding:40px;font-size:14px}
-.error-msg{text-align:center;color:#e53935;padding:40px;font-size:14px}
-nav{position:fixed;bottom:0;left:0;width:100%;background:#ffffff;border-top:1px solid #e0e0e0;display:grid;grid-template-columns:repeat(5,1fr);z-index:100}
-nav a{display:flex;flex-direction:column;align-items:center;padding:9px 0 7px;text-decoration:none;color:#999;font-size:10px;gap:2px}
-nav a.active{color:#1a1f2e;font-weight:700}
-nav a .ic{font-size:21px}
-</style>
-</head>
-<body>
-<div class="header">
-<span style="font-size:22px">📈</span>
-<h1>평가액 히스토리</h1>
-<a href="index.html">← 홈</a>
-</div>
-<div class="filter-section">
-<div class="filter-title">🔍 필터 조건</div>
-<div class="filter-grid">
-<div class="filter-group span2">
-<label>📅 기간</label>
-<div class="date-row">
-<input type="date" id="dateFrom">
-<span class="date-sep">~</span>
-<input type="date" id="dateTo">
-</div>
-</div>
-<div class="filter-group">
-<label>👤 사용자</label>
-<select id="fUser"><option value="">전체</option></select>
-</div>
-<div class="filter-group">
-<label>🏦 금융기관</label>
-<select id="fInstitution"><option value="">전체</option></select>
-</div>
-<div class="filter-group">
-<label>📦 상품</label>
-<select id="fProduct"><option value="">전체</option></select>
-</div>
-<div class="filter-group">
-<label>📊 종목</label>
-<select id="fStock"><option value="">전체</option></select>
-</div>
-</div>
-<div class="btn-row">
-<button class="btn-reset" onclick="resetFilters()">초기화</button>
-<button class="btn-apply" onclick="applyFilter()">📊 차트 조회</button>
-</div>
-</div>
-<div class="section">
-<div id="summaryArea"></div>
-<div id="chartArea"><div class="loading">⏳ 데이터 불러오는 중...</div></div>
-</div>
-<nav>
-<a href="index.html"><span class="ic">📊</span>통계</a>
-<a href="trading.html"><span class="ic">✏️</span>거래입력</a>
-<a href="history.html" class="active"><span class="ic">📈</span>히스토리</a>
-<a href="setting.html"><span class="ic">⚙️</span>설정</a>
-<a href="snapshot.html"><span class="ic">🗃️</span>스냅샷</a>
-</nav>
-<script>
-var GAS='https://script.google.com/macros/s/AKfycbw42bSbW1U2Sufta-d1cjYDD5PZG6q4JeIy5yYePRKLXTWU78ueprlss2SjHSK3GpVz6g/exec';
-var STATIC_BASE='public/data';
-var allData=[],myChart=null,labelsMap={사용자:{},금융기관:{},상품:{},종목:{}};
-function num(n){return Math.round(n).toLocaleString('ko-KR');}
-function fmtDate(d){if(!d)return'';if(d.indexOf('/')!==-1){var p=d.split('/');return p[0]+'-'+p[1].padStart(2,'0')+'-'+p[2].padStart(2,'0');}return d.split('T')[0];}
-(function(){var now=new Date(),y1=new Date(now);y1.setFullYear(now.getFullYear()-1);document.getElementById('dateTo').value=now.toISOString().split('T')[0];document.getElementById('dateFrom').value=y1.toISOString().split('T')[0];})();
-
-// 정적 JSON 우선, 실패시 GAS 폴백
-async function fetchJSON(staticPath, gasUrl) {
-  try {
-    const r = await fetch(staticPath + '?_=' + Date.now());
-    if (r.ok) { const d = await r.json(); if (!d.error) return d; }
-  } catch(e) {}
-  const r2 = await fetch(gasUrl);
-  return r2.json();
-}
-
-function loadLabels(cb){
-  fetchJSON(STATIC_BASE+'/labels.json', GAS+'?action=api&type=labels')
-    .then(function(data){ labelsMap=data; cb(); })
-    .catch(function(){ cb(); });
-}
-function loadSnapshot(){
-  document.getElementById('chartArea').innerHTML='<div class="loading">⏳ 데이터 불러오는 중...</div>';
-  document.getElementById('summaryArea').innerHTML='';
-  fetchJSON(STATIC_BASE+'/history.json', GAS+'?action=api&type=snapshot')
-    .then(function(data){allData=data;populateFilters(data);applyFilter();})
-    .catch(function(e){document.getElementById('chartArea').innerHTML='<div class="error-msg">데이터 로드 실패</div>';});
-}
-function populateFilters(data){
-  var users=[],insts=[],prods=[],stocks=[];
-  data.forEach(function(r){
-    if(r.사용자ID&&users.indexOf(r.사용자ID)===-1)users.push(r.사용자ID);
-    if(r.금융기관&&insts.indexOf(r.금융기관)===-1)insts.push(r.금융기관);
-    if(r.상품&&prods.indexOf(r.상품)===-1)prods.push(r.상품);
-    if(r.종목코드&&stocks.indexOf(r.종목코드)===-1)stocks.push(r.종목코드);
-  });
-  function fill(id,arr,labelKey){var sel=document.getElementById(id);sel.innerHTML='<option value="">전체</option>';arr.forEach(function(k){var opt=document.createElement('option');opt.value=k;opt.textContent=(labelsMap[labelKey]&&labelsMap[labelKey][k])||k;sel.appendChild(opt);});}
-  fill('fUser',users,'사용자');fill('fInstitution',insts,'금융기관');fill('fProduct',prods,'상품');fill('fStock',stocks,'종목');
-}
-function applyFilter(){
-  var from=document.getElementById('dateFrom').value,to=document.getElementById('dateTo').value;
-  var user=document.getElementById('fUser').value,inst=document.getElementById('fInstitution').value;
-  var prod=document.getElementById('fProduct').value,stock=document.getElementById('fStock').value;
-  var filtered=allData.filter(function(r){var d=fmtDate(r.날짜);if(from&&d<from)return false;if(to&&d>to)return false;if(user&&r.사용자ID!==user)return false;if(inst&&r.금융기관!==inst)return false;if(prod&&r.상품!==prod)return false;if(stock&&r.종목코드!==stock)return false;return true;});
-  renderChart(filtered);
-}
-function resetFilters(){var now=new Date(),y1=new Date(now);y1.setFullYear(now.getFullYear()-1);document.getElementById('dateTo').value=now.toISOString().split('T')[0];document.getElementById('dateFrom').value=y1.toISOString().split('T')[0];['fUser','fInstitution','fProduct','fStock'].forEach(function(id){document.getElementById(id).value='';});applyFilter();}
-function renderChart(data){
-  if(!data||!data.length){document.getElementById('summaryArea').innerHTML='';document.getElementById('chartArea').innerHTML='<div class="error-msg">조회 결과가 없습니다.</div>';return;}
-  var byDate={};
-  data.forEach(function(r){var d=fmtDate(r.날짜);if(!byDate[d])byDate[d]=0;byDate[d]+=Number(r.평가액)||0;});
-  var dates=Object.keys(byDate).sort();
-  var vals=dates.map(function(d){return byDate[d];});
-  var first=vals[0]||0,last=vals[vals.length-1]||0,diff=last-first,pct=first?((diff/first)*100):0;
-  var sHtml='<div class="summary-card"><div><div class="lbl">조회 결과 총 평가액</div><div class="val">₩'+num(last)+'</div></div><div style="text-align:right"><div class="lbl">기간 수익</div><div class="val '+( diff>=0?'':'')+'">'+( diff>=0?'+':'')+num(diff)+'</div><div class="chg" style="color:'+(diff>=0?'#e53935':'#3498db')+'">('+(pct>=0?'+':'')+pct.toFixed(1)+'%)</div></div></div>';
-  document.getElementById('summaryArea').innerHTML=sHtml;
-  var cHtml='<div class="chart-card"><div class="chart-top"><div><div class="chart-title">📈 평가액 추이</div><div class="chart-sub">날짜별 필터 조건 합산</div></div></div><canvas id="myChart"></canvas></div>';
-  document.getElementById('chartArea').innerHTML=cHtml;
-  if(myChart){myChart.destroy();myChart=null;}
-  var ctx=document.getElementById('myChart').getContext('2d');
-  myChart=new Chart(ctx,{type:'line',data:{labels:dates,datasets:[{label:'평가액',data:vals,borderColor:'#1a1f2e',backgroundColor:'rgba(26,31,46,0.08)',tension:0.3,pointRadius:dates.length>60?0:3,fill:true}]},options:{responsive:true,plugins:{legend:{display:false},tooltip:{callbacks:{label:function(c){return'₩'+num(c.raw);}}}},scales:{x:{ticks:{maxTicksLimit:8,maxRotation:0}},y:{ticks:{callback:function(v){return'₩'+num(v);}}}}}});
-}
+function renderChart(data){if(!data||!data.length){document.getElementById('summaryArea').innerHTML='';document.getElementById('chartArea').innerHTML='<div class="error-msg">조회 결과가 없습니다.</div>';return;}var byDate={};data.forEach(function(r){var d=fmtDate(r.날짜);if(!byDate[d])byDate[d]=0;byDate[d]+=Number(r.평가액)||0;});var dates=Object.keys(byDate).sort();var vals=dates.map(function(d){return byDate[d];});var first=vals[0]||0,last=vals[vals.length-1]||0,diff=last-first,pct=first?((diff/first)*100):0;var sHtml='<div class="summary-card"><div><div class="lbl">조회 결과 총 평가액</div><div class="val">&#x20A9;'+num(last)+'</div></div><div style="text-align:right"><div class="lbl">기간 변화</div><div class="val" style="font-size:16px;color:'+(diff>=0?'#e53935':'#3498db')+'">'+(diff>=0?'&#x25B2; + ':'&#x25BC; ')+' &#x20A9;'+num(Math.abs(diff))+'</div><div class="chg" style="color:'+(diff>=0?'#e53935':'#3498db')+'">('+(pct>=0?'+':'')+pct.toFixed(2)+'%)</div></div></div>';document.getElementById('summaryArea').innerHTML=sHtml;var cHtml='<div class="chart-card"><div class="chart-top"><div><div class="chart-title">&#x1F4C8; 평가액 추이</div><div class="chart-sub">날짜별 필터 조건 평가액 합산</div></div><span class="chart-pts">'+dates.length+' 포인트</span></div><canvas id="myChart"></canvas></div>';document.getElementById('chartArea').innerHTML=cHtml;if(myChart){myChart.destroy();myChart=null;}var ctx=document.getElementById('myChart').getContext('2d');myChart=new Chart(ctx,{type:'line',data:{labels:dates,datasets:[{label:'평가액',data:vals,borderColor:'#1a1f2e',backgroundColor:'rgba(26,31,46,0.08)',tension:0.3,pointRadius:dates.length>60?0:4,fill:true}]},options:{responsive:true,plugins:{legend:{display:false},tooltip:{callbacks:{label:function(c){return'&#x20A9;'+num(c.raw);}}}},scales:{x:{ticks:{maxTicksLimit:8,maxRotation:0}},y:{ticks:{callback:function(v){return'&#x20A9;'+num(v);}}}}}});}
 loadLabels(loadSnapshot);
 </script>
 </body>
