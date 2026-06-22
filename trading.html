@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">  <meta name="apple-mobile-web-app-capable" content="yes">  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<title>ê±°ëìë ¥ â ìì£¼ì£¼ìë§ì¼</title>
+<title>거래입력 – 안주주식마켓</title>
 <style>
 * { margin: 0; padding: 0; box-sizing: border-box; }
 body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #f0f2f5; color: #333; padding-bottom: 72px; }
@@ -65,76 +65,76 @@ nav a .ic { font-size: 21px; }
 </head>
 <body>
 <div class="header">
-  <span style="font-size:22px">âï¸</span>
-  <h1>ê±°ë ìë ¥</h1>
-  <a href="index.html">â í</a>
+  <span style="font-size:22px">✏️</span>
+  <h1>거래 입력</h1>
+  <a href="index.html">← 홈</a>
 </div>
 <div class="section">
   <div class="form-card">
     <div class="tab-bar">
-      <button class="tab-btn active" onclick="switchTab('form')">ê±°ë ìë ¥</button>
-      <button class="tab-btn" onclick="switchTab('list')">ê±°ë ëª©ë¡</button>
+      <button class="tab-btn active" onclick="switchTab('form')">거래 입력</button>
+      <button class="tab-btn" onclick="switchTab('list')">거래 목록</button>
     </div>
     <div id="tabForm" class="tab-content active">
       <div class="trade-type-row">
-        <button class="trade-type-btn buy active" onclick="setTradeType('buy')">ë§¤ì</button>
-        <button class="trade-type-btn sell" onclick="setTradeType('sell')">ë§¤ë</button>
+        <button class="trade-type-btn buy active" onclick="setTradeType('buy')">매수</button>
+        <button class="trade-type-btn sell" onclick="setTradeType('sell')">매도</button>
       </div>
       <div class="form-group">
-        <label>ë ì§</label>
+        <label>날짜</label>
         <input type="date" id="inpDate">
       </div>
       <div class="form-group">
-        <label>ì¬ì©ì</label>
-        <select id="selUser"><option value="">ë¡ë© ì¤...</option></select>
+        <label>사용자</label>
+        <select id="selUser"><option value="">로딩 중...</option></select>
       </div>
       <div class="form-group">
-        <label>ê¸ìµê¸°ê´</label>
-        <select id="selInst"><option value="">ë¡ë© ì¤...</option></select>
+        <label>금융기관</label>
+        <select id="selInst"><option value="">로딩 중...</option></select>
       </div>
       <div class="form-group">
-        <label>ìí</label>
-        <select id="selProd"><option value="">ë¡ë© ì¤...</option></select>
+        <label>상품</label>
+        <select id="selProd"><option value="">로딩 중...</option></select>
       </div>
       <div class="form-group">
-        <label>ì¢ëª©</label>
-        <select id="selStock"><option value="">ë¡ë© ì¤...</option></select>
+        <label>종목</label>
+        <select id="selStock"><option value="">로딩 중...</option></select>
       </div>
       <div class="form-group">
-        <label>ìë</label>
+        <label>수량</label>
         <input type="number" id="inpQty" placeholder="0" min="1" oninput="calcAmount()">
       </div>
       <div class="form-group">
-        <label>ë¨ê° (ì)</label>
+        <label>단가 (원)</label>
         <input type="number" id="inpPrice" placeholder="0" min="0" oninput="calcAmount()">
       </div>
             <div class="form-group">
-                      <label>ê¸ì¡ (ì)</label>
+                      <label>금액 (원)</label>
                     <input type="number" id="inpAmount" placeholder="0" readonly style="background:#f8f8f8;color:#1a1f2e;font-weight:700;">
                   </div>
-      <button class="save-btn" onclick="submitTrade()">ê±°ë ì ì¥</button>
+      <button class="save-btn" onclick="submitTrade()">거래 저장</button>
     </div>
     <div id="tabList" class="tab-content">
       <div id="tradeListContent" class="trade-list">
-        <div class="loading">&#x23F3; ë¡ë© ì¤...</div>
+        <div class="loading">&#x23F3; 로딩 중...</div>
       </div>
     </div>
   </div>
 </div>
 
 <nav>
-  <a href="index.html"><span class="ic">&#x1F4CA;</span>íµê³</a>
-  <a href="trading.html" class="active"><span class="ic">&#x270F;&#xFE0F;</span>ê±°ëìë ¥</a>
-  <a href="history.html"><span class="ic">&#x1F4C8;</span>íì¤í ë¦¬</a>
-  <a href="setting.html"><span class="ic">&#x2699;&#xFE0F;</span>ì¤ì </a>
-  <a href="snapshot.html"><span class="ic">&#x1F4F7;</span>ì¤ëµì·</a>
+  <a href="index.html"><span class="ic">&#x1F4CA;</span>통계</a>
+  <a href="trading.html" class="active"><span class="ic">&#x270F;&#xFE0F;</span>거래입력</a>
+  <a href="history.html"><span class="ic">&#x1F4C8;</span>히스토리</a>
+  <a href="setting.html"><span class="ic">&#x2699;&#xFE0F;</span>설정</a>
+  <a href="snapshot.html"><span class="ic">&#x1F4F7;</span>스낵샷</a>
 </nav>
 
 <div class="popup-overlay" id="popupOverlay">
   <div class="popup-box">
     <div class="popup-icon">&#x2705;</div>
-    <div class="popup-title">ë±ë¡ ìë£!</div>
-    <div class="popup-msg">ê±°ëê° ì±ê³µì ì¼ë¡ ë±ë¡ëììµëë¤.</div>
+    <div class="popup-title">등록 완료!</div>
+    <div class="popup-msg">거래가 성공적으로 등록되었습니다.</div>
   </div>
 </div>
 
@@ -145,7 +145,7 @@ let tradeType = 'buy';
 let accountRows = [];
 let labelsCache = {};
 
-// ì¤ë ë ì§ë¥¼ YYYY-MM-DD íìì¼ë¡ ë°í
+// 오늘 날짜를 YYYY-MM-DD 형식으로 반환
 function getTodayStr() {
   const d = new Date();
   const kst = new Date(d.getTime() + 9 * 60 * 60 * 1000);
@@ -170,7 +170,7 @@ function setTradeType(t) {
 
 function populateSelectFromObj(id, obj) {
   var sel = document.getElementById(id);
-  sel.innerHTML = '<option value="">ì ííì¸ì</option>';
+  sel.innerHTML = '<option value="">선택하세요</option>';
   Object.entries(obj).forEach(function(entry) {
     var k = entry[0], v = entry[1];
     var opt = document.createElement('option');
@@ -189,21 +189,21 @@ function calcAmount() {
   async function loadLabels() {
   try {
     var labRes = await fetch(GAS + '?action=api&type=labels');
-    var accRes = await fetch(GAS + '?action=readSheet&sheet=ê³ì¢');
+    var accRes = await fetch(GAS + '?action=readSheet&sheet=계좌');
     
     var lab = await labRes.json();
     var acc = await accRes.json();
     accountRows = (acc.data || []).slice(1);
     labelsCache = lab;
-    populateSelectFromObj('selUser', lab['ì¬ì©ì'] || {});
-    populateSelectFromObj('selInst', lab['ê¸ìµê¸°ê´'] || {});
-    populateSelectFromObj('selProd', lab['ìí'] || {});
-    populateSelectFromObj('selStock', lab['ì¢ëª©'] || {});
-    stockMap = lab['ì¢ëª©'] || {};
+    populateSelectFromObj('selUser', lab['사용자'] || {});
+    populateSelectFromObj('selInst', lab['금융기관'] || {});
+    populateSelectFromObj('selProd', lab['상품'] || {});
+    populateSelectFromObj('selStock', lab['종목'] || {});
+    stockMap = lab['종목'] || {};
   } catch(e) {
-    console.error('ë¼ë²¨ ë¡ë ì¤ë¥:', e);
+    console.error('라벨 로드 오류:', e);
   }
-  // ë ì§ ê¸°ë³¸ê° ì¤ì 
+  // 날짜 기본값 설정
   const dateEl = document.getElementById('inpDate');
   if (dateEl && !dateEl.value) dateEl.value = getTodayStr();
 }
@@ -213,22 +213,22 @@ function findAccountId(userId, instId, prodId) {
   return found ? found[0] : null;
 }
 
-// ê³ì¢IDë¡ ê³ì¢ëª(ì¬ì©ì+ê¸ìµê¸°ê´+ìí) ë°í
+// 계좌ID로 계좌명(사용자+금융기관+상품) 반환
 function getAccountLabel(accountId) {
   if (!accountId) return '';
-  // accountRows: [ê³ì¢ID, ì¬ì©ìID, ê¸ìµê¸°ê´ID, ìíID, ...]
+  // accountRows: [계좌ID, 사용자ID, 금융기관ID, 상품ID, ...]
   const row = accountRows.find(r => r[0] === accountId);
   if (!row) return accountId;
-  const users = labelsCache['ì¬ì©ì'] || {};
-  const insts = labelsCache['ê¸ìµê¸°ê´'] || {};
-  const prods = labelsCache['ìí'] || {};
+  const users = labelsCache['사용자'] || {};
+  const insts = labelsCache['금융기관'] || {};
+  const prods = labelsCache['상품'] || {};
   const uName = users[row[1]] || row[1] || '';
   const bName = insts[row[2]] || row[2] || '';
   const pName = prods[row[3]] || row[3] || '';
   return [uName, bName, pName].filter(Boolean).join(' ');
 }
 
-// UTC ISO ë ì§ë¥¼ KST(+9h) ë ì§ë¬¸ìì´ë¡ ë³í
+// UTC ISO 날짜를 KST(+9h) 날짜문자열로 변환
 function formatDateKST(dateStr) {
   if (!dateStr) return '';
   var d = new Date(dateStr);
@@ -250,34 +250,34 @@ async function submitTrade() {
   var price = Number(document.getElementById('inpPrice').value);
 
   if (!userId || !instId || !prodId || !stockId || !qty || !price) {
-    alert('ëª¨ë  í­ëª©ì ìë ¥í´ì£¼ì¸ì.');
+    alert('모든 항목을 입력해주세요.');
     return;
   }
 
   var accountId = findAccountId(userId, instId, prodId);
   if (!accountId) {
-    alert('í´ë¹ ì¬ì©ì/ê¸°ê´/ìí ì¡°í©ì ê³ì¢ê° ììµëë¤.');
+    alert('해당 사용자/기관/상품 조합의 계좌가 없습니다.');
     return;
   }
 
   var btn = document.querySelector('.save-btn');
   btn.disabled = true;
-  btn.textContent = 'ì ì¥ ì¤...';
+  btn.textContent = '저장 중...';
 
   try {
     var amount = qty * price;
     var body = {
       action: 'add',
       type: 'trading',
-      'ë ì§': tradeDate,
-      'ì¬ì©ìID': userId,
-      'ê¸ìµê¸°ê´ID': accountId,
-      'ì¢ëª©ì½ë': stockId,
-      'ê±°ëì í': tradeType === 'buy' ? 'ë§¤ì' : 'ë§¤ë',
-      'ìë': qty,
-      'ë¨ê°': price,
-      'ê±°ëê¸ì¡': amount,
-      'ê¸ì¡': amount
+      '날짜': tradeDate,
+      '사용자ID': userId,
+      '금융기관ID': accountId,
+      '종목코드': stockId,
+      '거래유형': tradeType === 'buy' ? '매수' : '매도',
+      '수량': qty,
+      '단가': price,
+      '거래금액': amount,
+      '금액': amount
     };
 
     var res = await fetch(GAS, {
@@ -295,13 +295,13 @@ async function submitTrade() {
         switchTab('list');
       }, 1500);
     } else {
-      alert('ì ì¥ ì¤í¨: ' + (data.message || JSON.stringify(data)));
+      alert('저장 실패: ' + (data.message || JSON.stringify(data)));
     }
   } catch(e) {
-    alert('ì¤ë¥ ë°ì: ' + e.message);
+    alert('오류 발생: ' + e.message);
   } finally {
     btn.disabled = false;
-    btn.textContent = 'ê±°ë ì ì¥';
+    btn.textContent = '거래 저장';
   }
 }
 
@@ -321,13 +321,13 @@ function hidePopup() { document.getElementById('popupOverlay').classList.remove(
 
 async function loadTradeList() {
   var el = document.getElementById('tradeListContent');
-  el.innerHTML = '<div class="loading">&#x23F3; ê±°ë ë´ì­ ë¡ë© ì¤...</div>';
+  el.innerHTML = '<div class="loading">&#x23F3; 거래 내역 로딩 중...</div>';
   try {
-    var res = await fetch(GAS + '?action=readSheet&sheet=ê±°ëë´ì­');
+    var res = await fetch(GAS + '?action=readSheet&sheet=거래내역');
     var data = await res.json();
     var rows = (data.data || []);
     if (rows.length <= 1) {
-      el.innerHTML = '<div class="empty"><div class="empty-icon">&#x1F4CB;</div>ê±°ë ë´ì­ì´ ììµëë¤.</div>';
+      el.innerHTML = '<div class="empty"><div class="empty-icon">&#x1F4CB;</div>거래 내역이 없습니다.</div>';
       return;
     }
     var headers = rows[0];
@@ -335,18 +335,18 @@ async function loadTradeList() {
 
     function ci(name) { var idx = headers.indexOf(name); return idx !== -1 ? idx : -1; }
 
-    var iDate = ci('ë ì§');
-    var iType = ci('ê±°ëì í');
-    var iStock = ci('ì¢ëª©ì½ë');
-    var iQty = ci('ìë');
-    var iPrice = ci('ë¨ê°');
-    var iAmt = ci('ê±°ëê¸ì¡');
-    var iTradeId = ci('ê±°ëID');
-    var iAccId = ci('ê³ì¢ID');
+    var iDate = ci('날짜');
+    var iType = ci('거래유형');
+    var iStock = ci('종목코드');
+    var iQty = ci('수량');
+    var iPrice = ci('단가');
+    var iAmt = ci('거래금액');
+    var iTradeId = ci('거래ID');
+    var iAccId = ci('계좌ID');
 
     el.innerHTML = dataRows.map(function(r) {
       var type = iType >= 0 ? (r[iType] || '') : '';
-      var isBuy = type === 'ë§¤ì' || type === 'buy';
+      var isBuy = type === '매수' || type === 'buy';
       var qty = Number(iQty >= 0 ? (r[iQty] || 0) : 0);
       var price = Number(iPrice >= 0 ? (r[iPrice] || 0) : 0);
       var amt = Number(iAmt >= 0 ? (r[iAmt] || 0) : 0) || (qty * price);
@@ -362,21 +362,21 @@ async function loadTradeList() {
         '</div>' +
         '<div class="trade-info">' +
           '<span>' + date + '</span>' +
-          '<span>' + qty.toLocaleString() + 'ì£¼ @ ' + price.toLocaleString() + 'ì</span>' +
+          '<span>' + qty.toLocaleString() + '주 @ ' + price.toLocaleString() + '원</span>' +
         '</div>' +
-        '<div class="trade-amount">' + amt.toLocaleString() + 'ì</div>' +
+        '<div class="trade-amount">' + amt.toLocaleString() + '원</div>' +
         (accLabel ? '<div class="trade-account">\uD83D\uDC64 ' + accLabel + '</div>' : '') +
-      '<div class="trade-del-wrap"><button class="btn-del-trade" data-id="' + tradeId + '" data-date="' + date + '" onclick="deleteTrade(this.dataset.id, this.dataset.date)">ì­ì </button></div>' +
+      '<div class="trade-del-wrap"><button class="btn-del-trade" data-id="' + tradeId + '" data-date="' + date + '" onclick="deleteTrade(this.dataset.id, this.dataset.date)">삭제</button></div>' +
       '</div>';
     }).join('');
   } catch(e) {
-    el.innerHTML = '<div class="empty"><div class="empty-icon">&#x26A0;&#xFE0F;</div>ë¡ë© ì¤í¨: ' + e.message + '</div>';
+    el.innerHTML = '<div class="empty"><div class="empty-icon">&#x26A0;&#xFE0F;</div>로딩 실패: ' + e.message + '</div>';
   }
 }
 
 function deleteTrade(tradeId, date) {
   const msg = document.getElementById('delConfirmMsg');
-  msg.textContent = date + ' ê±°ë ë´ì­ì´ ì­ì ë©ëë¤.';
+  msg.textContent = date + ' 거래 내역이 삭제됩니다.';
   const overlay = document.getElementById('delConfirmOverlay');
   overlay.style.display = 'flex';
   const okBtn = document.getElementById('delOkBtn');
@@ -390,13 +390,13 @@ function deleteTrade(tradeId, date) {
       });
       const data = await res.json();
       if (data.result === 'success' || data.status === 'ok') {
-        showToast('ì­ì ëììµëë¤.');
+        showToast('삭제되었습니다.');
         loadTradeList();
       } else {
-        showToast('ì¤ë¥: ' + (data.message || 'ì¤í¨'));
+        showToast('오류: ' + (data.message || '실패'));
       }
     } catch(e) {
-      showToast('ì­ì  ì¤í¨: ' + e.message);
+      showToast('삭제 실패: ' + e.message);
     }
   };
 }
@@ -408,17 +408,17 @@ function showToast(msg) {
   setTimeout(() => t.style.display = 'none', 2000);
 }
 
-// íì´ì§ ë¡ë ì ë ì§ ì´ê¸°í
+// 페이지 로드 시 날짜 초기화
 document.getElementById('inpDate').value = getTodayStr();
 loadLabels();
 </script>
 <div id="delConfirmOverlay" class="del-confirm-overlay" style="display:none;">
   <div class="del-confirm-box">
-    <h3>ê±°ë ë´ì­ ì­ì </h3>
+    <h3>거래 내역 삭제</h3>
     <p id="delConfirmMsg"></p>
     <div class="del-confirm-btns">
-      <button class="del-cancel-btn" onclick="document.getElementById('delConfirmOverlay').style.display='none'">ì·¨ì</button>
-      <button class="del-ok-btn" id="delOkBtn">ì­ì </button>
+      <button class="del-cancel-btn" onclick="document.getElementById('delConfirmOverlay').style.display='none'">취소</button>
+      <button class="del-ok-btn" id="delOkBtn">삭제</button>
     </div>
   </div>
 </div>
