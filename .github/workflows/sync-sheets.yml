@@ -27,7 +27,7 @@ jobs:
           curl -sL "$GAS_URL?action=api&type=indices" -o public/data/indices.json
           curl -sL "$GAS_URL?action=api&type=snapshot" -o public/data/history.json
           curl -sL "$GAS_URL?action=api&type=labels" -o public/data/labels.json
-          curl -sL "$GAS_URL?action=readSheet&sheet=거래내역" -o public/data/tradelist.json
+          curl -sL "$GAS_URL?action=readSheet&sheet=%EA%B1%B0%EB%9E%98%EB%82%B4%EC%97%AD" -o public/data/tradelist.json
           printf '{"updatedAt":"%s"}' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > public/data/meta.json
 
       - name: Commit and push if changed
