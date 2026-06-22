@@ -124,7 +124,7 @@ async function initPage(){
     populateSelectFromObj('selInst',lab['금융기관']||{});
     populateSelectFromObj('selProd',lab['상품']||{});
     populateSelectFromObj('selStock',lab['종목']||{});
-    try{var a=await(await fetch(GAS+'?action=readSheet&sheet=계좌')).json();accountRows=(a.data||[]).slice(1);}catch(e2){}
+    try{var a=await fetchJSON(STATIC_BASE+'/accounts.json',GAS+'?action=readSheet&sheet=%EA%B3%84%EC%A2%8C');accountRows=(a.data||[]).slice(1);}catch(e2){}
   }catch(e){console.error(e);}
 }
 function fmtDate(s){if(!s)return'';var d=new Date(s);if(isNaN(d.getTime()))return String(s).substring(0,10);var k=new Date(d.getTime()+9*60*60*1000);return k.getUTCFullYear()+'-'+String(k.getUTCMonth()+1).padStart(2,'0')+'-'+String(k.getUTCDate()).padStart(2,'0');}
