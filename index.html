@@ -18,7 +18,261 @@ body { font-family:-apple-system,sans-serif; background:#f0f2f5; color:#333; pad
 .idx-label { font-size:9px; font-weight:700; color:#555; }
 .idx-val { font-size:10px; font-weight:700; }
 .idx-val.up { color:#d32f2f; }
+.idx-val.down { color:#1565c0; }<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="theme-color" content="#1a1f2e">
+    <link rel="manifest" href="manifest.json">
+<title>ìì£¼ì£¼ìë§ì¼</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family:-apple-system,sans-serif; background:#f0f2f5; color:#333; padding-bottom:72px; }
+.header { background: #ffffff; color: #1a1f2e; padding:16px 20px; position:sticky; top:0; z-index:100; display:flex; align-items:center; justify-content:space-between; gap:8px; }
+.header-indices { display:flex; gap:6px; align-items:center; flex-shrink:0; font-size:10px; }
+.idx-item { display:flex; flex-direction:column; align-items:center; min-width:54px; }
+.idx-label { font-size:9px; font-weight:700; color:#555; }
+.idx-val { font-size:10px; font-weight:700; }
+.idx-val.up { color:#d32f2f; }
 .idx-val.down { color:#1565c0; }
+.header h1 { font-size:18px; font-weight:700; }
+.filter-wrap { padding:12px 16px; background:white; border-bottom:1px solid #eee; }
+select { width:100%; padding:10px 14px; border:1.5px solid #ddd; border-radius:10px; font-size:15px; background:white; color:#333; }
+.stats-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; padding:14px; }
+.stat-card { background:white; border-radius:14px; padding:14px; box-shadow:0 1px 4px rgba(0,0,0,0.08); }
+.stat-card.full { grid-column:span 2; }
+.stat-label { font-size:11px; color:#999; margin-bottom:6px; font-weight:600; }
+.stat-value { font-size:20px; font-weight:800; }
+.up { color:#e74c3c; }
+.down { color:#3498db; }
+.section { padding:8px 16px; font-size:12px; color:#888; font-weight:700; background:#f0f2f5; }
+.stock-list { background:white; }
+.stock-item { display:flex; align-items:center; padding:14px 16px; border-bottom:1px solid #f5f5f5; }
+.stock-info { flex:1; }
+.stock-name { font-size:14px; font-weight:600; }
+.stock-price { font-size:11px; color:#aaa; margin-top:2px; }
+.stock-vals { text-align:right; }
+.stock-eval { font-size:15px; font-weight:700; }
+.stock-rates { font-size:11px; margin-top:3px; }
+.loading { text-align:center; padding:50px; color:#aaa; font-size:14px; }
+nav { position:fixed; bottom:0; left:0; width:100%; background: #ffffff; border-top: 1px solid #e0e0e0; display:grid; grid-template-columns:repeat(5,1fr); z-index:100; }
+nav a { display:flex; flex-direction:column; align-items:center; padding:9px 0 7px; text-decoration:none; color: #999; font-size:10px; gap:2px; }
+nav a.active { color: #1a1f2e; font-weight:700; }
+nav a .ic { font-size:21px; }
+</style>
+</head>
+<body>
+<div class="header"><h1>ð ìì£¼ì£¼ìë§ì¼</h1><div class="header-indices" id="headerIndices"><span class="idx-item"><span class="idx-label">SPX</span><span class="idx-val" id="idxSPX">-</span></span><span class="idx-item"><span class="idx-label">NDX</span><span class="idx-val" id="idxNDX">-</span></span><span class="idx-item"><span class="idx-label">SPMO</span><span class="idx-val" id="idxSPMO">-</span></span></div></div>
+<div class="filter-wrap">
+<select id="userFilter" onchange="loadData()"><option value="ì ì²´">â³ ë¶ë¬ì¤ë ì¤...</option></select>
+</div>
+<div id="content"><div class="loading">â³ ë°ì´í° ë¶ë¬ì¤ë ì¤...</div></div>
+<nav>
+<a class="active" href="index.html"><span class="ic">ð</span>íµê³</a>
+<a href="trading.html"><span class="ic">âï¸</span>ê±°ëìë ¥</a>
+<a href="history.html"><span class="ic">ð</span>íì¤í ë¦¬</a>
+<a href="setting.html"><span class="ic">âï¸</span>ì¤ì </a>
+<a href="snapshot.html"><span class="ic">ð·</span>ì¤ëì·</a>
+</nav>
+<script>
+var GAS_URL='https://script.google.com/macros/s/AKfycbz3VGPAtks3tzPOwdL2qq_-7CmL-DZNzVckv05adQvK-Q6C_k9_E_oPXraZi55P2lvrPw/exec';
+function num(n){return Math.round(n).toLocaleString('ko-KR');}
+function rate(r){return(r>=0?'+':'')+r.toFixed(2)+'%';}
+function cls(v){return v>=0?'up':'down';}
+function loadData(){
+var filter=document.getElementById('userFilter').value;
+document.getElementById('content').innerHTML='<div class="loading">â³ ë¶ë¬ì¤ë ì¤...</div>';
+fetch(GAS_URL+'?action=api&type=data&filter='+encodeURIComponent(filter))
+.then(function(r){return r.json();}).then(render)
+.catch(function(e){document.getElementById('content').innerHTML='<div class="loading">â ì¤ë¥: '+e.message+'</div>';});
+}
+function initFilters(){
+fetch(GAS_URL+'?action=api&type=filters')
+.then(function(r){return r.json();})
+.then(function(options){
+var sel=document.getElementById('userFilter');
+sel.innerHTML='';
+options.forEach(function(opt){var o=document.createElement('option');o.value=opt.value;o.text=opt.label;sel.appendChild(o);});
+loadData();
+}).catch(function(){document.getElementById('userFilter').innerHTML='<option value="ì ì²´">ð¥ ì ì²´</option>';loadData();});
+}
+function render(data){
+var t=data.íµê³;
+var html='<div class="stats-grid">';
+html+='<div class="stat-card full"><div class="stat-label">ð° ì´ íê°ì¡</div><div class="stat-value">â©'+num(t.ì´íê°ì¡)+'</div></div>';
+html+='<div class="stat-card"><div class="stat-label">ð ììµê¸</div><div class="stat-value '+cls(t.ììµê¸)+'">'+(t.ììµê¸>=0?'+':'')+'â©'+num(t.ììµê¸)+'</div></div>';
+html+='<div class="stat-card"><div class="stat-label">ð ììµë¥ </div><div class="stat-value '+cls(t.ììµë¥ )+'">'+rate(t.ììµë¥ )+'</div></div>';
+html+='<div class="stat-card"><div class="stat-label">ð ì ì¼ëë¹</div><div class="stat-value '+cls(t.ì ì¼ëë¹ê¸ì¡)+'">'+(t.ì ì¼ëë¹ê¸ì¡>=0?'+':'')+'â©'+num(t.ì ì¼ëë¹ê¸ì¡)+'</div></div>';
+html+='<div class="stat-card"><div class="stat-label">ð ì ì¼ëë¹ì¨</div><div class="stat-value '+cls(t.ì ì¼ëë¹ì¨)+'">'+rate(t.ì ì¼ëë¹ì¨)+'</div></div>';
+html+='</div>';
+html+='<div class="section">ð ë³´ì  ì¢ëª©</div><div class="stock-list">';
+data.ì¢ëª©ëª©ë¡.forEach(function(s){
+var qty=s.ë³´ì ìë?(' | '+s.ë³´ì ìë+'ì£¼'):'';
+html+='<div class="stock-item"><div class="stock-info"><div class="stock-name">'+s.ì¢ëª©ëª+'</div><div class="stock-price">íì¬ê° â©'+num(s.íì¬ê°)+qty+'</div></div>';
+html+='<div class="stock-vals"><div class="stock-eval">â©'+num(s.íê°ì¡)+'</div><div class="stock-rates"><span class="'+cls(s.ììµë¥ )+'">'+rate(s.ììµë¥ )+'</span> | <span class="'+cls(s.ì ì¼ëë¹ì¨)+'">'+rate(s.ì ì¼ëë¹ì¨)+'</span></div></div></div>';
+});
+html+='</div>';
+document.getElementById('content').innerHTML=html;
+}
+initFilters();
+</script>
+<script>
+async function loadMarketIndices() {
+  try {
+    var res = await fetch(GAS_URL + '?action=api&type=indices');
+    var data = await res.json();
+    var map = {SPX: 'idxSPX', NDX: 'idxNDX', SPMO: 'idxSPMO'};
+    data.forEach(function(item) {
+      var id = map[item.name];
+      if (!id) return;
+      var el = document.getElementById(id);
+      if (!el) return;
+      var pct = parseFloat(item.rate);
+      if (isNaN(pct)) return;
+      var sign = pct >= 0 ? '+' : '';
+      el.textContent = sign + pct.toFixed(2) + '%';
+      el.className = 'idx-val ' + (pct >= 0 ? 'up' : 'down');
+    });
+  } catch(e) {
+    console.log('ì§ì ë¡ë© ì¤ë¥:', e.message);
+  }
+}
+loadMarketIndices();
+</script>
+</body>
+</html>
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="theme-color" content="#1a1f2e">
+    <link rel="manifest" href="manifest.json">
+<title>ìì£¼ì£¼ìë§ì¼</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family:-apple-system,sans-serif; background:#f0f2f5; color:#333; padding-bottom:72px; }
+.header { background: #ffffff; color: #1a1f2e; padding:16px 20px; position:sticky; top:0; z-index:100; display:flex; align-items:center; justify-content:space-between; gap:8px; }
+.header-indices { display:flex; gap:6px; align-items:center; flex-shrink:0; font-size:10px; }
+.idx-item { display:flex; flex-direction:column; align-items:center; min-width:54px; }
+.idx-label { font-size:9px; font-weight:700; color:#555; }
+.idx-val { font-size:10px; font-weight:700; }
+.idx-val.up { color:#d32f2f; }
+.idx-val.down { color:#1565c0; }
+.header h1 { font-size:18px; font-weight:700; }
+.filter-wrap { padding:12px 16px; background:white; border-bottom:1px solid #eee; }
+select { width:100%; padding:10px 14px; border:1.5px solid #ddd; border-radius:10px; font-size:15px; background:white; color:#333; }
+.stats-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; padding:14px; }
+.stat-card { background:white; border-radius:14px; padding:14px; box-shadow:0 1px 4px rgba(0,0,0,0.08); }
+.stat-card.full { grid-column:span 2; }
+.stat-label { font-size:11px; color:#999; margin-bottom:6px; font-weight:600; }
+.stat-value { font-size:20px; font-weight:800; }
+.up { color:#e74c3c; }
+.down { color:#3498db; }
+.section { padding:8px 16px; font-size:12px; color:#888; font-weight:700; background:#f0f2f5; }
+.stock-list { background:white; }
+.stock-item { display:flex; align-items:center; padding:14px 16px; border-bottom:1px solid #f5f5f5; }
+.stock-info { flex:1; }
+.stock-name { font-size:14px; font-weight:600; }
+.stock-price { font-size:11px; color:#aaa; margin-top:2px; }
+.stock-vals { text-align:right; }
+.stock-eval { font-size:15px; font-weight:700; }
+.stock-rates { font-size:11px; margin-top:3px; }
+.loading { text-align:center; padding:50px; color:#aaa; font-size:14px; }
+nav { position:fixed; bottom:0; left:0; width:100%; background: #ffffff; border-top: 1px solid #e0e0e0; display:grid; grid-template-columns:repeat(5,1fr); z-index:100; }
+nav a { display:flex; flex-direction:column; align-items:center; padding:9px 0 7px; text-decoration:none; color: #999; font-size:10px; gap:2px; }
+nav a.active { color: #1a1f2e; font-weight:700; }
+nav a .ic { font-size:21px; }
+</style>
+</head>
+<body>
+<div class="header"><h1>ð ìì£¼ì£¼ìë§ì¼</h1><div class="header-indices" id="headerIndices"><span class="idx-item"><span class="idx-label">SPX</span><span class="idx-val" id="idxSPX">-</span></span><span class="idx-item"><span class="idx-label">NDX</span><span class="idx-val" id="idxNDX">-</span></span><span class="idx-item"><span class="idx-label">SPMO</span><span class="idx-val" id="idxSPMO">-</span></span></div></div>
+<div class="filter-wrap">
+<select id="userFilter" onchange="loadData()"><option value="ì ì²´">â³ ë¶ë¬ì¤ë ì¤...</option></select>
+</div>
+<div id="content"><div class="loading">â³ ë°ì´í° ë¶ë¬ì¤ë ì¤...</div></div>
+<nav>
+<a class="active" href="index.html"><span class="ic">ð</span>íµê³</a>
+<a href="trading.html"><span class="ic">âï¸</span>ê±°ëìë ¥</a>
+<a href="history.html"><span class="ic">ð</span>íì¤í ë¦¬</a>
+<a href="setting.html"><span class="ic">âï¸</span>ì¤ì </a>
+<a href="snapshot.html"><span class="ic">ð·</span>ì¤ëì·</a>
+</nav>
+<script>
+var GAS_URL='https://script.google.com/macros/s/AKfycbz3VGPAtks3tzPOwdL2qq_-7CmL-DZNzVckv05adQvK-Q6C_k9_E_oPXraZi55P2lvrPw/exec';
+function num(n){return Math.round(n).toLocaleString('ko-KR');}
+function rate(r){return(r>=0?'+':'')+r.toFixed(2)+'%';}
+function cls(v){return v>=0?'up':'down';}
+function loadData(){
+var filter=document.getElementById('userFilter').value;
+document.getElementById('content').innerHTML='<div class="loading">â³ ë¶ë¬ì¤ë ì¤...</div>';
+fetch(GAS_URL+'?action=api&type=data&filter='+encodeURIComponent(filter))
+.then(function(r){return r.json();}).then(render)
+.catch(function(e){document.getElementById('content').innerHTML='<div class="loading">â ì¤ë¥: '+e.message+'</div>';});
+}
+function initFilters(){
+fetch(GAS_URL+'?action=api&type=filters')
+.then(function(r){return r.json();})
+.then(function(options){
+var sel=document.getElementById('userFilter');
+sel.innerHTML='';
+options.forEach(function(opt){var o=document.createElement('option');o.value=opt.value;o.text=opt.label;sel.appendChild(o);});
+loadData();
+}).catch(function(){document.getElementById('userFilter').innerHTML='<option value="ì ì²´">ð¥ ì ì²´</option>';loadData();});
+}
+function render(data){
+var t=data.íµê³;
+var html='<div class="stats-grid">';
+html+='<div class="stat-card full"><div class="stat-label">ð° ì´ íê°ì¡</div><div class="stat-value">â©'+num(t.ì´íê°ì¡)+'</div></div>';
+html+='<div class="stat-card"><div class="stat-label">ð ììµê¸</div><div class="stat-value '+cls(t.ììµê¸)+'">'+(t.ììµê¸>=0?'+':'')+'â©'+num(t.ììµê¸)+'</div></div>';
+html+='<div class="stat-card"><div class="stat-label">ð ììµë¥ </div><div class="stat-value '+cls(t.ììµë¥ )+'">'+rate(t.ììµë¥ )+'</div></div>';
+html+='<div class="stat-card"><div class="stat-label">ð ì ì¼ëë¹</div><div class="stat-value '+cls(t.ì ì¼ëë¹ê¸ì¡)+'">'+(t.ì ì¼ëë¹ê¸ì¡>=0?'+':'')+'â©'+num(t.ì ì¼ëë¹ê¸ì¡)+'</div></div>';
+html+='<div class="stat-card"><div class="stat-label">ð ì ì¼ëë¹ì¨</div><div class="stat-value '+cls(t.ì ì¼ëë¹ì¨)+'">'+rate(t.ì ì¼ëë¹ì¨)+'</div></div>';
+html+='</div>';
+html+='<div class="section">ð ë³´ì  ì¢ëª©</div><div class="stock-list">';
+data.ì¢ëª©ëª©ë¡.forEach(function(s){
+var qty=s.ë³´ì ìë?(' | '+s.ë³´ì ìë+'ì£¼'):'';
+html+='<div class="stock-item"><div class="stock-info"><div class="stock-name">'+s.ì¢ëª©ëª+'</div><div class="stock-price">íì¬ê° â©'+num(s.íì¬ê°)+qty+'</div></div>';
+html+='<div class="stock-vals"><div class="stock-eval">â©'+num(s.íê°ì¡)+'</div><div class="stock-rates"><span class="'+cls(s.ììµë¥ )+'">'+rate(s.ììµë¥ )+'</span> | <span class="'+cls(s.ì ì¼ëë¹ì¨)+'">'+rate(s.ì ì¼ëë¹ì¨)+'</span></div></div></div>';
+});
+html+='</div>';
+document.getElementById('content').innerHTML=html;
+}
+initFilters();
+</script>
+<script>
+async function loadMarketIndices() {
+  try {
+    var res = await fetch(GAS_URL + '?action=api&type=indices');
+    var data = await res.json();
+    var map = {SPX: 'idxSPX', NDX: 'idxNDX', SPMO: 'idxSPMO'};
+    data.forEach(function(item) {
+      var id = map[item.name];
+      if (!id) return;
+      var el = document.getElementById(id);
+      if (!el) return;
+      var pct = parseFloat(item.rate);
+      if (isNaN(pct)) return;
+      var sign = pct >= 0 ? '+' : '';
+      el.textContent = sign + pct.toFixed(2) + '%';
+      el.className = 'idx-val ' + (pct >= 0 ? 'up' : 'down');
+    });
+  } catch(e) {
+    console.log('ì§ì ë¡ë© ì¤ë¥:', e.message);
+  }
+}
+loadMarketIndices();
+</script>
+</body>
+</html>
+
 .header h1 { font-size:18px; font-weight:700; }
 .filter-wrap { padding:12px 16px; background:white; border-bottom:1px solid #eee; }
 select { width:100%; padding:10px 14px; border:1.5px solid #ddd; border-radius:10px; font-size:15px; background:white; color:#333; }
