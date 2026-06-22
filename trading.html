@@ -128,11 +128,12 @@ async function initPage(){
   }catch(e){console.error(e);}
 }
 function fmtDate(s){if(!s)return'';var d=new Date(s);if(isNaN(d.getTime()))return String(s).substring(0,10);var k=new Date(d.getTime()+9*60*60*1000);return k.getUTCFullYear()+'-'+String(k.getUTCMonth()+1).padStart(2,'0')+'-'+String(k.getUTCDate()).padStart(2,'0');}
+function jsonpFetch(url){return new Promise(function(resolve,reject){var cb='__cb_'+Date.now();window[cb]=function(d){delete window[cb];document.head.removeChild(sc);resolve(d);};var sc=document.createElement('script');sc.src=url+'&callback='+cb;sc.onerror=function(){delete window[cb];document.head.removeChild(sc);reject(new Error('JSONP error'));};document.head.appendChild(sc);});}
 async function loadTradeList(){
   var el=document.getElementById('tradeListContent');
   el.innerHTML='<div class="loading">&#x23F3; 로딩 중...</div>';
   try{
-    var data=await(await fetch(GAS+'?action=readSheet&sheet=거래내역')).json();
+    var data=await jsonpFetch(GAS+'?action=readSheet&sheet=거래내역');
     var rows=data.data||[];
     if(rows.length<=1){el.innerHTML='<div class="empty"><div class="empty-icon">&#x1F4ED;</div>거래 내역이 없습니다.</div>';return;}
     var hd=rows[0];
