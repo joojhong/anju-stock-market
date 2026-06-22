@@ -3,6 +3,432 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">  <meta name="apple-mobile-web-app-capable" content="yes">  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>ê±°ëìë ¥ â ìì£¼ì£¼ìë§ì¼</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #f0f2f5; color: #333; padding-bottom: 72px; }
+.header { background: #ffffff; color: #1a1f2e; padding: 16px 20px; display: flex; align-items: center; gap: 10px; position: sticky; top: 0; z-index: 100; border-bottom: 1px solid #eee; }
+.header h1 { font-size: 18px; font-weight: 700; flex: 1; }
+.header a { color: #666; font-size: 13px; text-decoration: none; padding: 4px 8px; border-radius: 6px; background: rgba(255,255,255,0.1); }
+nav { position: fixed; bottom: 0; left: 0; width: 100%; background: #ffffff; border-top: 1px solid #e0e0e0; display: grid; grid-template-columns: repeat(5, 1fr); z-index: 100; }
+nav a { display: flex; flex-direction: column; align-items: center; padding: 9px 0 7px; text-decoration: none; color: #999; font-size: 10px; gap: 2px; }
+nav a.active { color: #1a1f2e; font-weight: 700; }
+nav a .ic { font-size: 21px; }
+.section { padding: 14px 16px; }
+.form-card { background: white; border-radius: 14px; padding: 16px; box-shadow: 0 1px 4px rgba(0,0,0,.08); margin-bottom: 12px; }
+.tab-bar { display: flex; border-bottom: 1px solid #eee; margin-bottom: 14px; }
+.tab-btn { flex: 1; padding: 10px; background: none; border: none; font-size: 13px; font-weight: 600; color: #999; cursor: pointer; }
+.tab-btn.active { color: #1a1f2e; border-bottom-color: #1a1f2e; }
+.tab-content { display: none; }
+.tab-content.active { display: block; }
+.trade-type-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 14px; }
+.trade-type-btn { padding: 10px; border: 2px solid #e0e0e0; border-radius: 10px; background: white; font-size: 14px; font-weight: 600; cursor: pointer; }
+.trade-type-btn.buy.active { background: #fff0f0; border-color: #e53935; color: #e53935; }
+.trade-type-btn.sell.active { background: #f0f6ff; border-color: #3498db; color: #3498db; }
+.form-group { margin-bottom: 14px; }
+.form-group label { display: block; font-size: 12px; font-weight: 600; color: #666; margin-bottom: 6px; }
+.form-group select, .form-group input { width: 100%; padding: 10px 12px; border: 1.5px solid #e0e0e0; border-radius: 10px; font-size: 14px; background: white; appearance: auto; }
+  .form-group input[type="date"] { -webkit-appearance: none; appearance: none; box-sizing: border-box; max-width: 100%; min-width: 0; display: block; }
+.form-group select:focus, .form-group input:focus { outline: none; border-color: #1a1f2e; }
+.save-btn { width: 100%; padding: 14px; background: #1a1f2e; color: white; border: none; border-radius: 12px; font-size: 15px; font-weight: 700; cursor: pointer; margin-top: 4px; }
+.save-btn:active { opacity: 0.85; }
+.trade-list { display: flex; flex-direction: column; gap: 10px; }
+.trade-item { background: white; border-radius: 12px; padding: 14px; box-shadow: 0 1px 4px rgba(0,0,0,.06); }
+.trade-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+.trade-stock { font-size: 15px; font-weight: 700; }
+.trade-type-badge { font-size: 12px; font-weight: 700; padding: 2px 8px; border-radius: 20px; }
+.trade-type-badge.buy { background: #fff0f0; color: #e53935; }
+.trade-type-badge.sell { background: #f0f6ff; color: #3498db; }
+.trade-info { font-size: 12px; color: #666; display: flex; gap: 10px; flex-wrap: wrap; }
+.trade-amount { font-size: 14px; font-weight: 700; color: #1a1f2e; margin-top: 6px; }
+.trade-account { font-size: 11px; color: #999; margin-top: 3px; }
+.loading { text-align: center; color: #999; padding: 30px; font-size: 14px; }
+.empty { text-align: center; color: #bbb; padding: 40px; }
+.empty-icon { font-size: 40px; margin-bottom: 10px; }
+.popup-overlay { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 999; align-items: center; justify-content: center; }
+.popup-overlay.show { display: flex; }
+.popup-box { background: white; border-radius: 16px; padding: 28px 24px; text-align: center; max-width: 300px; width: 90%; box-shadow: 0 8px 32px rgba(0,0,0,0.2); }
+.popup-icon { font-size: 48px; margin-bottom: 12px; }
+.popup-title { font-size: 18px; font-weight: 700; color: #1a1f2e; margin-bottom: 8px; }
+.popup-msg { font-size: 14px; color: #666; }
+.trade-del-wrap { text-align:right; margin-top:6px; }
+.btn-del-trade { background:#fff0f0; color:#d32f2f; border:1px solid #ffcdd2; border-radius:6px; font-size:11px; padding:3px 10px; cursor:pointer; }
+.btn-del-trade:hover { background:#ffcdd2; }
+.del-confirm-overlay { position:fixed; top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:500;display:flex;align-items:center;justify-content:center; }
+.del-confirm-box { background:white;border-radius:14px;padding:24px;margin:20px;max-width:320px;width:100%; }
+.del-confirm-box h3 { font-size:16px;font-weight:700;margin-bottom:12px;color:#1a1f2e; }
+.del-confirm-box p { font-size:14px;color:#555;margin-bottom:20px;line-height:1.5; }
+.del-confirm-btns { display:flex;gap:8px;justify-content:flex-end; }
+.del-cancel-btn { padding:8px 16px;border:1px solid #ddd;border-radius:8px;background:white;cursor:pointer;font-size:14px; }
+.del-ok-btn { padding:8px 16px;background:#d32f2f;color:white;border:none;border-radius:8px;cursor:pointer;font-size:14px; }
+</style>
+</head>
+<body>
+<div class="header">
+  <span style="font-size:22px">âï¸</span>
+  <h1>ê±°ë ìë ¥</h1>
+  <a href="index.html">â í</a>
+</div>
+<div class="section">
+  <div class="form-card">
+    <div class="tab-bar">
+      <button class="tab-btn active" onclick="switchTab('form')">ê±°ë ìë ¥</button>
+      <button class="tab-btn" onclick="switchTab('list')">ê±°ë ëª©ë¡</button>
+    </div>
+    <div id="tabForm" class="tab-content active">
+      <div class="trade-type-row">
+        <button class="trade-type-btn buy active" onclick="setTradeType('buy')">ë§¤ì</button>
+        <button class="trade-type-btn sell" onclick="setTradeType('sell')">ë§¤ë</button>
+      </div>
+      <div class="form-group">
+        <label>ë ì§</label>
+        <input type="date" id="inpDate">
+      </div>
+      <div class="form-group">
+        <label>ì¬ì©ì</label>
+        <select id="selUser"><option value="">ë¡ë© ì¤...</option></select>
+      </div>
+      <div class="form-group">
+        <label>ê¸ìµê¸°ê´</label>
+        <select id="selInst"><option value="">ë¡ë© ì¤...</option></select>
+      </div>
+      <div class="form-group">
+        <label>ìí</label>
+        <select id="selProd"><option value="">ë¡ë© ì¤...</option></select>
+      </div>
+      <div class="form-group">
+        <label>ì¢ëª©</label>
+        <select id="selStock"><option value="">ë¡ë© ì¤...</option></select>
+      </div>
+      <div class="form-group">
+        <label>ìë</label>
+        <input type="number" id="inpQty" placeholder="0" min="1" oninput="calcAmount()">
+      </div>
+      <div class="form-group">
+        <label>ë¨ê° (ì)</label>
+        <input type="number" id="inpPrice" placeholder="0" min="0" oninput="calcAmount()">
+      </div>
+            <div class="form-group">
+                      <label>ê¸ì¡ (ì)</label>
+                    <input type="number" id="inpAmount" placeholder="0" readonly style="background:#f8f8f8;color:#1a1f2e;font-weight:700;">
+                  </div>
+      <button class="save-btn" onclick="submitTrade()">ê±°ë ì ì¥</button>
+    </div>
+    <div id="tabList" class="tab-content">
+      <div id="tradeListContent" class="trade-list">
+        <div class="loading">&#x23F3; ë¡ë© ì¤...</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<nav>
+  <a href="index.html"><span class="ic">&#x1F4CA;</span>íµê³</a>
+  <a href="trading.html" class="active"><span class="ic">&#x270F;&#xFE0F;</span>ê±°ëìë ¥</a>
+  <a href="history.html"><span class="ic">&#x1F4C8;</span>íì¤í ë¦¬</a>
+  <a href="setting.html"><span class="ic">&#x2699;&#xFE0F;</span>ì¤ì </a>
+  <a href="snapshot.html"><span class="ic">&#x1F4F7;</span>ì¤ëµì·</a>
+</nav>
+
+<div class="popup-overlay" id="popupOverlay">
+  <div class="popup-box">
+    <div class="popup-icon">&#x2705;</div>
+    <div class="popup-title">ë±ë¡ ìë£!</div>
+    <div class="popup-msg">ê±°ëê° ì±ê³µì ì¼ë¡ ë±ë¡ëììµëë¤.</div>
+  </div>
+</div>
+
+<script>
+const GAS = 'https://script.google.com/macros/s/AKfycbw42bSbW1U2SUfta-d1cjYDD5PZG6q4JeIy5yYePRKLXTWU78ueprlss2SjHSK3GpVz6g/exec';
+var stockMap = {};
+let tradeType = 'buy';
+let accountRows = [];
+let labelsCache = {};
+
+// ì¤ë ë ì§ë¥¼ YYYY-MM-DD íìì¼ë¡ ë°í
+function getTodayStr() {
+  const d = new Date();
+  const kst = new Date(d.getTime() + 9 * 60 * 60 * 1000);
+  const y = kst.getUTCFullYear();
+  const m = String(kst.getUTCMonth() + 1).padStart(2, '0');
+  const day = String(kst.getUTCDate()).padStart(2, '0');
+  return y + '-' + m + '-' + day;
+}
+
+function switchTab(tab) {
+  document.querySelectorAll('.tab-btn').forEach((b,i) => b.classList.toggle('active', (tab==='form'&&i===0)||(tab==='list'&&i===1)));
+  document.getElementById('tabForm').classList.toggle('active', tab==='form');
+  document.getElementById('tabList').classList.toggle('active', tab==='list');
+  if (tab === 'list') loadTradeList();
+}
+
+function setTradeType(t) {
+  tradeType = t;
+  document.querySelectorAll('.trade-type-btn').forEach(b => b.classList.remove('active'));
+  document.querySelector('.trade-type-btn.' + t).classList.add('active');
+}
+
+function populateSelectFromObj(id, obj) {
+  var sel = document.getElementById(id);
+  sel.innerHTML = '<option value="">ì ííì¸ì</option>';
+  Object.entries(obj).forEach(function(entry) {
+    var k = entry[0], v = entry[1];
+    var opt = document.createElement('option');
+    opt.value = k;
+    opt.textContent = v;
+    sel.appendChild(opt);
+  });
+}
+
+function calcAmount() {
+    var qty = Number(document.getElementById('inpQty').value) || 0;
+    var price = Number(document.getElementById('inpPrice').value) || 0;
+    var el = document.getElementById('inpAmount');
+    if (el) el.value = qty * price || '';
+}
+  async function loadLabels() {
+  try {
+    var labRes = await fetch(GAS + '?action=api&type=labels');
+    var accRes = await fetch(GAS + '?action=readSheet&sheet=ê³ì¢');
+    
+    var lab = await labRes.json();
+    var acc = await accRes.json();
+    accountRows = (acc.data || []).slice(1);
+    labelsCache = lab;
+    populateSelectFromObj('selUser', lab['ì¬ì©ì'] || {});
+    populateSelectFromObj('selInst', lab['ê¸ìµê¸°ê´'] || {});
+    populateSelectFromObj('selProd', lab['ìí'] || {});
+    populateSelectFromObj('selStock', lab['ì¢ëª©'] || {});
+    stockMap = lab['ì¢ëª©'] || {};
+  } catch(e) {
+    console.error('ë¼ë²¨ ë¡ë ì¤ë¥:', e);
+  }
+  // ë ì§ ê¸°ë³¸ê° ì¤ì 
+  const dateEl = document.getElementById('inpDate');
+  if (dateEl && !dateEl.value) dateEl.value = getTodayStr();
+}
+
+function findAccountId(userId, instId, prodId) {
+  var found = accountRows.find(function(r) { return r[1] === userId && r[2] === instId && r[3] === prodId; });
+  return found ? found[0] : null;
+}
+
+// ê³ì¢IDë¡ ê³ì¢ëª(ì¬ì©ì+ê¸ìµê¸°ê´+ìí) ë°í
+function getAccountLabel(accountId) {
+  if (!accountId) return '';
+  // accountRows: [ê³ì¢ID, ì¬ì©ìID, ê¸ìµê¸°ê´ID, ìíID, ...]
+  const row = accountRows.find(r => r[0] === accountId);
+  if (!row) return accountId;
+  const users = labelsCache['ì¬ì©ì'] || {};
+  const insts = labelsCache['ê¸ìµê¸°ê´'] || {};
+  const prods = labelsCache['ìí'] || {};
+  const uName = users[row[1]] || row[1] || '';
+  const bName = insts[row[2]] || row[2] || '';
+  const pName = prods[row[3]] || row[3] || '';
+  return [uName, bName, pName].filter(Boolean).join(' ');
+}
+
+// UTC ISO ë ì§ë¥¼ KST(+9h) ë ì§ë¬¸ìì´ë¡ ë³í
+function formatDateKST(dateStr) {
+  if (!dateStr) return '';
+  var d = new Date(dateStr);
+  if (isNaN(d.getTime())) return dateStr.toString().substring(0, 10);
+  var kst = new Date(d.getTime() + 9 * 60 * 60 * 1000);
+  var y = kst.getUTCFullYear();
+  var m = String(kst.getUTCMonth() + 1).padStart(2, '0');
+  var day = String(kst.getUTCDate()).padStart(2, '0');
+  return y + '-' + m + '-' + day;
+}
+
+async function submitTrade() {
+  var tradeDate = document.getElementById('inpDate').value || getTodayStr();
+  var userId = document.getElementById('selUser').value;
+  var instId = document.getElementById('selInst').value;
+  var prodId = document.getElementById('selProd').value;
+  var stockId = document.getElementById('selStock').value;
+  var qty = Number(document.getElementById('inpQty').value);
+  var price = Number(document.getElementById('inpPrice').value);
+
+  if (!userId || !instId || !prodId || !stockId || !qty || !price) {
+    alert('ëª¨ë  í­ëª©ì ìë ¥í´ì£¼ì¸ì.');
+    return;
+  }
+
+  var accountId = findAccountId(userId, instId, prodId);
+  if (!accountId) {
+    alert('í´ë¹ ì¬ì©ì/ê¸°ê´/ìí ì¡°í©ì ê³ì¢ê° ììµëë¤.');
+    return;
+  }
+
+  var btn = document.querySelector('.save-btn');
+  btn.disabled = true;
+  btn.textContent = 'ì ì¥ ì¤...';
+
+  try {
+    var amount = qty * price;
+    var body = {
+      action: 'add',
+      type: 'trading',
+      'ë ì§': tradeDate,
+      'ì¬ì©ìID': userId,
+      'ê¸ìµê¸°ê´ID': accountId,
+      'ì¢ëª©ì½ë': stockId,
+      'ê±°ëì í': tradeType === 'buy' ? 'ë§¤ì' : 'ë§¤ë',
+      'ìë': qty,
+      'ë¨ê°': price,
+      'ê±°ëê¸ì¡': amount,
+      'ê¸ì¡': amount
+    };
+
+    var res = await fetch(GAS, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify(body)
+    });
+    var data = await res.json();
+
+    if (data.result === 'success' || data.success || data.id) {
+      showPopup();
+      resetForm();
+      setTimeout(function() {
+        hidePopup();
+        switchTab('list');
+      }, 1500);
+    } else {
+      alert('ì ì¥ ì¤í¨: ' + (data.message || JSON.stringify(data)));
+    }
+  } catch(e) {
+    alert('ì¤ë¥ ë°ì: ' + e.message);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'ê±°ë ì ì¥';
+  }
+}
+
+function resetForm() {
+  document.getElementById('inpDate').value = getTodayStr();
+  document.getElementById('selUser').value = '';
+  document.getElementById('selInst').value = '';
+  document.getElementById('selProd').value = '';
+  document.getElementById('selStock').value = '';
+  document.getElementById('inpQty').value = '';
+  document.getElementById('inpPrice').value = '';
+  setTradeType('buy');
+}
+
+function showPopup() { document.getElementById('popupOverlay').classList.add('show'); }
+function hidePopup() { document.getElementById('popupOverlay').classList.remove('show'); }
+
+async function loadTradeList() {
+  var el = document.getElementById('tradeListContent');
+  el.innerHTML = '<div class="loading">&#x23F3; ê±°ë ë´ì­ ë¡ë© ì¤...</div>';
+  try {
+    var res = await fetch(GAS + '?action=readSheet&sheet=ê±°ëë´ì­');
+    var data = await res.json();
+    var rows = (data.data || []);
+    if (rows.length <= 1) {
+      el.innerHTML = '<div class="empty"><div class="empty-icon">&#x1F4CB;</div>ê±°ë ë´ì­ì´ ììµëë¤.</div>';
+      return;
+    }
+    var headers = rows[0];
+    var dataRows = rows.slice(1).reverse();
+
+    function ci(name) { var idx = headers.indexOf(name); return idx !== -1 ? idx : -1; }
+
+    var iDate = ci('ë ì§');
+    var iType = ci('ê±°ëì í');
+    var iStock = ci('ì¢ëª©ì½ë');
+    var iQty = ci('ìë');
+    var iPrice = ci('ë¨ê°');
+    var iAmt = ci('ê±°ëê¸ì¡');
+    var iTradeId = ci('ê±°ëID');
+    var iAccId = ci('ê³ì¢ID');
+
+    el.innerHTML = dataRows.map(function(r) {
+      var type = iType >= 0 ? (r[iType] || '') : '';
+      var isBuy = type === 'ë§¤ì' || type === 'buy';
+      var qty = Number(iQty >= 0 ? (r[iQty] || 0) : 0);
+      var price = Number(iPrice >= 0 ? (r[iPrice] || 0) : 0);
+      var amt = Number(iAmt >= 0 ? (r[iAmt] || 0) : 0) || (qty * price);
+      var stock = iStock >= 0 ? (stockMap[r[iStock]] || r[iStock] || '-') : '-';
+      var date = iDate >= 0 ? formatDateKST(r[iDate]) : '';
+      var accId = iAccId >= 0 ? r[iAccId] : '';
+      var accLabel = getAccountLabel(accId);
+      var tradeId = iTradeId >= 0 ? r[iTradeId] : '';
+      return '<div class="trade-item">' +
+        '<div class="trade-header">' +
+          '<span class="trade-stock">' + stock + '</span>' +
+          '<span class="trade-type-badge ' + (isBuy ? 'buy' : 'sell') + '">' + type + '</span>' +
+        '</div>' +
+        '<div class="trade-info">' +
+          '<span>' + date + '</span>' +
+          '<span>' + qty.toLocaleString() + 'ì£¼ @ ' + price.toLocaleString() + 'ì</span>' +
+        '</div>' +
+        '<div class="trade-amount">' + amt.toLocaleString() + 'ì</div>' +
+        (accLabel ? '<div class="trade-account">\uD83D\uDC64 ' + accLabel + '</div>' : '') +
+      '<div class="trade-del-wrap"><button class="btn-del-trade" data-id="' + tradeId + '" data-date="' + date + '" onclick="deleteTrade(this.dataset.id, this.dataset.date)">ì­ì </button></div>' +
+      '</div>';
+    }).join('');
+  } catch(e) {
+    el.innerHTML = '<div class="empty"><div class="empty-icon">&#x26A0;&#xFE0F;</div>ë¡ë© ì¤í¨: ' + e.message + '</div>';
+  }
+}
+
+function deleteTrade(tradeId, date) {
+  const msg = document.getElementById('delConfirmMsg');
+  msg.textContent = date + ' ê±°ë ë´ì­ì´ ì­ì ë©ëë¤.';
+  const overlay = document.getElementById('delConfirmOverlay');
+  overlay.style.display = 'flex';
+  const okBtn = document.getElementById('delOkBtn');
+  okBtn.onclick = async function() {
+    overlay.style.display = 'none';
+    try {
+      const res = await fetch(GAS, {
+        method: 'POST',
+        headers: {'Content-Type': 'text/plain'},
+        body: JSON.stringify({action: 'delete', type: 'trading', category: 'trading', id: tradeId})
+      });
+      const data = await res.json();
+      if (data.result === 'success' || data.status === 'ok') {
+        showToast('ì­ì ëììµëë¤.');
+        loadTradeList();
+      } else {
+        showToast('ì¤ë¥: ' + (data.message || 'ì¤í¨'));
+      }
+    } catch(e) {
+      showToast('ì­ì  ì¤í¨: ' + e.message);
+    }
+  };
+}
+
+function showToast(msg) {
+  let t = document.getElementById('delToast');
+  if (!t) { t = document.createElement('div'); t.id = 'delToast'; t.style.cssText = 'position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:#333;color:white;padding:10px 20px;border-radius:8px;z-index:600;font-size:14px;'; document.body.appendChild(t); }
+  t.textContent = msg; t.style.display = 'block';
+  setTimeout(() => t.style.display = 'none', 2000);
+}
+
+// íì´ì§ ë¡ë ì ë ì§ ì´ê¸°í
+document.getElementById('inpDate').value = getTodayStr();
+loadLabels();
+</script>
+<div id="delConfirmOverlay" class="del-confirm-overlay" style="display:none;">
+  <div class="del-confirm-box">
+    <h3>ê±°ë ë´ì­ ì­ì </h3>
+    <p id="delConfirmMsg"></p>
+    <div class="del-confirm-btns">
+      <button class="del-cancel-btn" onclick="document.getElementById('delConfirmOverlay').style.display='none'">ì·¨ì</button>
+      <button class="del-ok-btn" id="delOkBtn">ì­ì </button>
+    </div>
+  </div>
+</div>
+</body>
+</html>
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">  <meta name="apple-mobile-web-app-capable" content="yes">  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <title>거래입력 – 안주주식마켓</title>
 <style>
 * { margin: 0; padding: 0; box-sizing: border-box; }
