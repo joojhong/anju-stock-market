@@ -208,8 +208,15 @@ window._webAuthnSignIn = async function() {
 };
 
 function _onAuthSuccess(state) {
-  if (typeof window.onAuthReady === 'function') window.onAuthReady(state);
-  else location.reload();
+  if (typeof window.onAuthReady === 'function') {
+    window.onAuthReady(state);
+    // onAuthReady가 Promise resolve만 한 경우 initFilters 직접 호출
+    if (typeof window.initFilters === 'function') {
+      setTimeout(() => { if (!document.querySelector('.stats-grid')) window.initFilters(); }, 200);
+    }
+  } else {
+    location.reload();
+  }
 }
 
 window.AUTH = {
