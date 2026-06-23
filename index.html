@@ -9,6 +9,10 @@
     <meta name="theme-color" content="#1a1f2e">
     <link rel="manifest" href="manifest.json">
 <title>안주주식마켓</title>
+<!-- Google Identity Services -->
+<script src="https://accounts.google.com/gsi/client" async></script>
+<!-- 인증 모듈 -->
+<script src="auth.js"></script>
 <style>
 * { margin:0; padding:0; box-sizing:border-box; }
 body { font-family:-apple-system,sans-serif; background:#f0f2f5; color:#333; padding-bottom:72px; }
@@ -43,10 +47,11 @@ nav { position:fixed; bottom:0; left:0; width:100%; background: #ffffff; border-
 nav a { display:flex; flex-direction:column; align-items:center; padding:9px 0 7px; text-decoration:none; color: #999; font-size:10px; gap:2px; }
 nav a.active { color: #1a1f2e; font-weight:700; }
 nav a .ic { font-size:21px; }
+.user-badge { font-size:11px; color:#6c63ff; background:#f0efff; padding:3px 8px; border-radius:8px; cursor:pointer; white-space:nowrap; }
 </style>
 </head>
 <body>
-<div class="header"><h1>📊 안주주식마켓</h1><div class="header-indices" id="headerIndices"><span class="idx-item"><span class="idx-label">SPX</span><span class="idx-val" id="idxSPX">-</span></span><span class="idx-item"><span class="idx-label">NDX</span><span class="idx-val" id="idxNDX">-</span></span><span class="idx-item"><span class="idx-label">SPMO</span><span class="idx-val" id="idxSPMO">-</span></span></div></div>
+<div class="header"><h1>📊 안주주식마켓</h1><div class="header-indices" id="headerIndices"><span class="idx-item"><span class="idx-label">SPX</span><span class="idx-val" id="idxSPX">-</span></span><span class="idx-item"><span class="idx-label">NDX</span><span class="idx-val" id="idxNDX">-</span></span><span class="idx-item"><span class="idx-label">SPMO</span><span class="idx-val" id="idxSPMO">-</span></span></div><span class="user-badge" id="userBadge" onclick="AUTH.logout()" title="로그아웃">⏳</span></div>
 <div class="filter-wrap">
 <select id="userFilter" onchange="loadData()"><option value="전체">⏳ 불러오는 중...</option></select>
 </div>
@@ -98,7 +103,29 @@ html+='<div class="stock-vals"><div class="stock-eval">₩'+num(s.평가액)+'</
 html+='</div>';
 document.getElementById('content').innerHTML=html;
 }
-initFilters();
+
+// ── 인증 초기화 ──────────────────────────────────────────
+window.onAuthReady = function(state) {
+  // 사용자 배지 업데이트
+  var badge = document.getElementById('userBadge');
+  if (badge && state.user && state.user.email) {
+    var name = state.user.name || state.user.email.split('@')[0];
+    badge.textContent = '👤 ' + name;
+    badge.title = state.user.email + ' (클릭: 로그아웃)';
+  }
+  // 데이터 로드 시작
+  initFilters();
+};
+
+// AUTH.init() 호출 - GIS 로드 대기
+function startApp() {
+  if (typeof AUTH !== 'undefined') {
+    AUTH.init();
+  } else {
+    setTimeout(startApp, 100);
+  }
+}
+startApp();
 </script>
 <script>
 async function loadMarketIndices() {
@@ -121,7 +148,10 @@ async function loadMarketIndices() {
     console.log('지수 로딩 오류:', e.message);
   }
 }
-loadMarketIndices();
+// 인증 완료 후 지수 로드
+document.addEventListener('DOMContentLoaded', function() {
+  setTimeout(loadMarketIndices, 2000);
+});
 </script>
 </body>
 </html>
