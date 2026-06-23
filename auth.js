@@ -1,5 +1,5 @@
-// auth.js - ìì£¼ì£¼ìë§ì¼ ê³µíµ ì¸ì¦ ëª¨ë
-// Google Identity Services (GIS) + WebAuthn (Face ID/ì§ë¬¸)
+// auth.js - 안주주식마켓 공통 인증 모듈
+// Google Identity Services (GIS) + WebAuthn (Face ID/지문)
 
 const AUTH_CONFIG = {
   CLIENT_ID: '245414285873-fkhamod3vgam0viqpf4si2o7j3lqgrg3.apps.googleusercontent.com',
@@ -32,12 +32,12 @@ function _showAuthScreen() {
                     background:#fff0f0; border-radius:8px; display:none; }
     </style>
     <div class="auth-card">
-      <div class="auth-logo">ð</div>
-      <div class="auth-title">ìì£¼ì£¼ìë§ì¼</div>
-      <div class="auth-sub">Google ê³ì ì¼ë¡ ë¡ê·¸ì¸íì¸ì</div>
+      <div class="auth-logo">📊</div>
+      <div class="auth-title">안주주식마켓</div>
+      <div class="auth-sub">Google 계정으로 로그인하세요</div>
       <button class="btn-google" onclick="window._googleSignIn()">
         <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google">
-        Googleë¡ ë¡ê·¸ì¸
+        Google로 로그인
       </button>
       <div class="auth-status" id="authStatus"></div>
       <div class="auth-error" id="authError"></div>
@@ -64,13 +64,13 @@ function _showFaceIdScreen(user) {
       .auth-status { margin-top:16px; font-size:13px; color:#aaa; }
     </style>
     <div class="auth-card">
-      <div class="auth-logo">ð</div>
-      <div class="auth-title">ë¤ì ì¤ì¨êµ°ì!</div>
-      <div class="auth-sub">ë¹ ë¥¸ ì¸ì¦ì¼ë¡ ì ìíì¸ì</div>
+      <div class="auth-logo">🔐</div>
+      <div class="auth-title">다시 오셨군요!</div>
+      <div class="auth-sub">빠른 인증으로 접속하세요</div>
       <div class="user-email">${user.email}</div>
-      <button class="btn-faceid" onclick="window._webAuthnSignIn()">Face ID / ì§ë¬¸ì¼ë¡ ì¸ì¦</button>
-      <button class="btn-google-fallback" onclick="window._googleSignIn()">Google ê³ì ì¼ë¡ ì¬ë¡ê·¸ì¸</button>
-      <div class="auth-status" id="authStatus">ì¸ì¦ ë²í¼ì ëë¬ì£¼ì¸ì</div>
+      <button class="btn-faceid" onclick="window._webAuthnSignIn()">Face ID / 지문으로 인증</button>
+      <button class="btn-google-fallback" onclick="window._googleSignIn()">Google 계정으로 재로그인</button>
+      <div class="auth-status" id="authStatus">인증 버튼을 눌러주세요</div>
     </div>
   `;
 }
@@ -88,10 +88,10 @@ function _showBlockedScreen() {
       .btn { margin-top:24px; padding:12px 24px; background:#f0f2f5; border:none; border-radius:10px; cursor:pointer; font-size:14px; }
     </style>
     <div class="card">
-      <div style="font-size:48px;margin-bottom:16px">ð«</div>
-      <h2>ì ê·¼ ê¶í ìì</h2>
-      <p>ì´ ì±ì ì ê·¼í  ê¶íì´ ììµëë¤.<br>Sheets ê³µì  ê¶íì íì¸í´ì£¼ì¸ì.</p>
-      <button class="btn" onclick="window._googleSignIn()">ë¤ë¥¸ ê³ì ì¼ë¡ ë¡ê·¸ì¸</button>
+      <div style="font-size:48px;margin-bottom:16px">🚫</div>
+      <h2>접근 권한 없음</h2>
+      <p>이 앱에 접근할 권한이 없습니다.<br>Sheets 공유 권한을 확인해주세요.</p>
+      <button class="btn" onclick="window._googleSignIn()">다른 계정으로 로그인</button>
     </div>
   `;
 }
@@ -100,13 +100,13 @@ function _setStatus(msg) { const el = document.getElementById('authStatus'); if 
 function _setError(msg) { const el = document.getElementById('authError'); if (el) { el.textContent = msg; el.style.display = 'block'; } }
 
 window._googleSignIn = function() {
-  _setStatus('Google ë¡ê·¸ì¸ ì¤...');
+  _setStatus('Google 로그인 중...');
   google.accounts.oauth2.initTokenClient({
     client_id: AUTH_CONFIG.CLIENT_ID,
     scope: 'https://www.googleapis.com/auth/spreadsheets.readonly email profile openid',
     callback: async (tokenResponse) => {
-      if (tokenResponse.error) { _setStatus(''); _setError('ë¡ê·¸ì¸ ì¤í¨: ' + tokenResponse.error); return; }
-      _setStatus('ê¶í íì¸ ì¤...');
+      if (tokenResponse.error) { _setStatus(''); _setError('로그인 실패: ' + tokenResponse.error); return; }
+      _setStatus('권한 확인 중...');
       const token = tokenResponse.access_token;
       try {
         const role = await _checkSheetsPermission(token);
@@ -120,7 +120,7 @@ window._googleSignIn = function() {
         const hasCred = localStorage.getItem(AUTH_CONFIG.WEBAUTHN_KEY);
         if (!hasCred && window.PublicKeyCredential) await _registerWebAuthn(userInfo.email);
         _onAuthSuccess(_authState);
-      } catch(e) { _setStatus(''); _setError('ì¤ë¥: ' + e.message); }
+      } catch(e) { _setStatus(''); _setError('오류: ' + e.message); }
     }
   }).requestAccessToken();
 };
@@ -152,7 +152,7 @@ async function _registerWebAuthn(email) {
     const cred = await navigator.credentials.create({
       publicKey: {
         challenge,
-        rp: { name: 'ìì£¼ì£¼ìë§ì¼', id: location.hostname },
+        rp: { name: '안주주식마켓', id: location.hostname },
         user: { id: new TextEncoder().encode(email), name: email, displayName: email },
         pubKeyCredParams: [{ alg: -7, type: 'public-key' }, { alg: -257, type: 'public-key' }],
         authenticatorSelection: { authenticatorAttachment: 'platform', userVerification: 'preferred', residentKey: 'preferred' },
@@ -160,11 +160,11 @@ async function _registerWebAuthn(email) {
       }
     });
     localStorage.setItem(AUTH_CONFIG.WEBAUTHN_KEY, btoa(String.fromCharCode(...new Uint8Array(cred.rawId))));
-  } catch(e) { console.log('WebAuthn ë±ë¡ ê±´ëë:', e.message); }
+  } catch(e) { console.log('WebAuthn 등록 건너뜀:', e.message); }
 }
 
 window._webAuthnSignIn = async function() {
-  _setStatus('ìì²´ ì¸ì¦ ì¤...');
+  _setStatus('생체 인증 중...');
   try {
     const challenge = new Uint8Array(32);
     crypto.getRandomValues(challenge);
@@ -178,7 +178,7 @@ window._webAuthnSignIn = async function() {
     const saved = JSON.parse(localStorage.getItem(AUTH_CONFIG.STORAGE_KEY) || '{}');
     _authState = { user: { email: saved.email, name: saved.name, picture: saved.picture }, token: null, role: saved.role || 'editor' };
     _onAuthSuccess(_authState);
-  } catch(e) { _setStatus('ìì²´ ì¸ì¦ ì¤í¨. Google ë¡ê·¸ì¸ì ì¬ì©í´ì£¼ì¸ì.'); }
+  } catch(e) { _setStatus('생체 인증 실패. Google 로그인을 사용해주세요.'); }
 };
 
 function _onAuthSuccess(state) {
