@@ -69,7 +69,7 @@ function _showFaceIdScreen(user) {
       <div class="auth-sub">빠른 인증으로 접속하세요</div>
       <div class="user-email">${user.email}</div>
       <button class="btn-faceid" onclick="window._webAuthnSignIn()">Face ID / 지문으로 인증</button>
-      <button class="btn-google-fallback" onclick="window._showAuthScreen()">Google 계정으로 재로그인</button>
+      <button class="btn-google-fallback" onclick="window._googleSignIn()">Google 계정으로 재로그인</button>
       <div class="auth-status" id="authStatus">인증 버튼을 눌러주세요</div>
     </div>
   `;
@@ -232,9 +232,52 @@ window.AUTH = {
       }
       const saved = JSON.parse(localStorage.getItem(AUTH_CONFIG.STORAGE_KEY) || '{}');
       const hasCred = localStorage.getItem(AUTH_CONFIG.WEBAUTHN_KEY);
-      if (saved.email && hasCred) {
-        _showFaceIdScreen(saved);
-        window.onAuthReady = (state) => resolve(state); return;
+      if (saved.email) {
+        // prompt:none으로 팝업 없이 자동 로그인 시도
+        _setStatus && _setStatus('자동 로그인 중...');
+        const tryAuto = () => {
+          try {
+            google.accounts.oauth2.initTokenClient({
+              client_id: AUTH_CONFIG.CLIENT_ID,
+              scope: 'https://www.googleapis.com/auth/spreadsheets.readonly email profile openid',
+              hint: saved.email,
+              prompt: 'none',
+              callback: async (resp) => {
+                if (resp.error || !resp.access_token) {
+                  // 자동 실패 → 로그인 화면 표시
+                  _showAuthScreen();
+                  window.onAuthReady = (state) => resolve(state);
+                } else {
+                  // 자동 성공
+                  const role = await _checkSheetsPermission(resp.access_token);
+                  if (role === 'none') { _showBlockedScreen(); return; }
+                  const userInfo = await _getUserInfo(resp.access_token);
+                  _authState = { user: userInfo, token: resp.access_token, role };
+                  sessionStorage.setItem(AUTH_CONFIG.TOKEN_KEY, resp.access_token);
+                  localStorage.setItem(AUTH_CONFIG.STORAGE_KEY, JSON.stringify({
+                    email: userInfo.email, name: userInfo.name, picture: userInfo.picture, role
+                  }));
+                  resolve(_authState);
+                  _onAuthSuccess(_authState);
+                }
+              }
+            }).requestAccessToken();
+          } catch(e) {
+            _showAuthScreen();
+            window.onAuthReady = (state) => resolve(state);
+          }
+        };
+        // GIS 로드 대기 후 실행
+        if (typeof google !== 'undefined' && google.accounts) {
+          tryAuto();
+        } else {
+          const wait = setInterval(() => {
+            if (typeof google !== 'undefined' && google.accounts) {
+              clearInterval(wait); tryAuto();
+            }
+          }, 100);
+        }
+        return;
       }
       _showAuthScreen();
       window.onAuthReady = (state) => resolve(state);
