@@ -128,15 +128,16 @@ window._googleSignIn = function() {
 async function _checkSheetsPermission(token) {
   try {
     const res = await fetch(
-      `https://www.googleapis.com/drive/v3/files/${AUTH_CONFIG.SHEETS_ID}?fields=capabilities`,
+      `https://www.googleapis.com/drive/v3/files/${AUTH_CONFIG.SHEETS_ID}?fields=capabilities,ownedByMe`,
       { headers: { Authorization: 'Bearer ' + token } }
     );
+    if (res.status === 403 || res.status === 404) return 'none';
     if (!res.ok) return 'none';
     const data = await res.json();
+    if (data.ownedByMe) return 'editor';
     const caps = data.capabilities || {};
-    if (caps.canEdit) return 'editor';
-    if (caps.canCopy || caps.canDownload) return 'viewer';
-    return 'none';
+    if (caps.canEdit || caps.canModifyContent) return 'editor';
+    return 'viewer';
   } catch(e) { return 'viewer'; }
 }
 
