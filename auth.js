@@ -23,6 +23,7 @@
   const KEY_ROLE    = 'anju_role';
   const KEY_PIN     = 'anju_pin';
   const KEY_LOCKED  = 'anju_locked';
+  const KEY_SESSION  = 'anju_session_ok';
 
   /* ── 유틸 ─────────────────────────────────────────── */
   async function sha256(text) {
@@ -35,6 +36,9 @@
   function getRole()   { return localStorage.getItem(KEY_ROLE); }
   function getPin()    { return localStorage.getItem(KEY_PIN); }
   function isLocked()  { return localStorage.getItem(KEY_LOCKED) === '1'; }
+  function isSessionOk()   { return sessionStorage.getItem(KEY_SESSION) === '1'; }
+  function setSessionOk()  { sessionStorage.setItem(KEY_SESSION, '1'); }
+  function clearSessionOk(){ sessionStorage.removeItem(KEY_SESSION); }
 
   function saveSession(token, expiresIn, role) {
     localStorage.setItem(KEY_TOKEN,  token);
@@ -400,13 +404,16 @@
     document.addEventListener('visibilitychange', () => {
       if (document.hidden) {
         hiddenAt = Date.now();
-        if (getPin()) localStorage.setItem(KEY_LOCKED, '1');
+        if (getPin()) { localStorage.setItem(KEY_LOCKED, '1'); clearSessionOk(); }
       } else {
         if (hiddenAt && Date.now() - hiddenAt > 2000 && getPin() && isLocked()) {
           showPinUnlockScreen(
-            () => { hideOverlay(); },
+            () => { setSessionOk(); hideOverlay(); },
             () => { clearSession(); startGoogleLogin(); }
           );
+        } else {
+          localStorage.removeItem(KEY_LOCKED);
+          if (getPin()) setSessionOk();
         }
         hiddenAt = null;
       }
@@ -416,14 +423,14 @@
   /* ── PIN 확인 후 진입 ──────────────────────────────── */
   function proceedToApp(role) {
     if (!getPin()) {
-      showPinSetupScreen(role, () => enterApp(role));
-    } else if (isLocked()) {
+      showPinSetupScreen(role, () => { setSessionOk(); enterApp(role); });
+    } else if (isSessionOk()) {
+      enterApp(role);
+    } else {
       showPinUnlockScreen(
-        () => enterApp(role),
+        () => { setSessionOk(); enterApp(role); },
         () => { clearSession(); startGoogleLogin(); }
       );
-    } else {
-      enterApp(role);
     }
   }
 
