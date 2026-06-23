@@ -156,7 +156,7 @@ async function _registerWebAuthn(email) {
         user: { id: new TextEncoder().encode(email), name: email, displayName: email },
         pubKeyCredParams: [{ alg: -7, type: 'public-key' }, { alg: -257, type: 'public-key' }],
         authenticatorSelection: { authenticatorAttachment: 'platform', userVerification: 'preferred', residentKey: 'preferred' },
-        timeout: 60000,
+        timeout: 10000,
       }
     });
     localStorage.setItem(AUTH_CONFIG.WEBAUTHN_KEY, btoa(String.fromCharCode(...new Uint8Array(cred.rawId))));
@@ -169,7 +169,7 @@ window._webAuthnSignIn = async function() {
     const challenge = new Uint8Array(32);
     crypto.getRandomValues(challenge);
     const credIdStr = localStorage.getItem(AUTH_CONFIG.WEBAUTHN_KEY);
-    const opts = { publicKey: { challenge, rpId: location.hostname, userVerification: 'preferred', timeout: 60000 } };
+    const opts = { publicKey: { challenge, rpId: location.hostname, userVerification: 'preferred', timeout: 10000 } };
     if (credIdStr) {
       const credIdBytes = Uint8Array.from(atob(credIdStr), c => c.charCodeAt(0));
       opts.publicKey.allowCredentials = [{ type: 'public-key', id: credIdBytes, transports: ['internal'] }];
