@@ -69,7 +69,7 @@ function _showFaceIdScreen(user) {
       <div class="auth-sub">빠른 인증으로 접속하세요</div>
       <div class="user-email">${user.email}</div>
       <button class="btn-faceid" onclick="window._webAuthnSignIn()">Face ID / 지문으로 인증</button>
-      <button class="btn-google-fallback" onclick="window._googleSignIn()">Google 계정으로 재로그인</button>
+      <button class="btn-google-fallback" onclick="window._showAuthScreen()">Google 계정으로 재로그인</button>
       <div class="auth-status" id="authStatus">인증 버튼을 눌러주세요</div>
     </div>
   `;
