@@ -4,10 +4,6 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">     <meta name="apple-mobile-web-app-capable" content="yes">     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">     <meta name="mobile-web-app-capable" content="yes">     <meta name="theme-color" content="#1a1f2e">     <link rel="manifest" href="manifest.json">
 <title>평가액 히스토리 - 안주주식마켓</title>
-<!-- Google Identity Services -->
-<script src="https://accounts.google.com/gsi/client" async></script>
-<!-- 인증 모듈 -->
-<script src="auth.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
@@ -157,12 +153,7 @@ if(myChart){myChart.destroy();myChart=null;}
 var ctx=document.getElementById('myChart').getContext('2d');
 myChart=new Chart(ctx,{type:'line',data:{labels:dates,datasets:[{data:vals,borderColor:'#1a1f2e',backgroundColor:'rgba(26,31,46,0.06)',borderWidth:2,pointRadius:dates.length<=30?4:2,pointBackgroundColor:'#1a1f2e',fill:true,tension:0.3}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:function(c){return' ₩'+num(c.raw);}}}},scales:{x:{grid:{display:false},ticks:{maxTicksLimit:8,font:{size:11},callback:function(v,i,t){var d=dates[i];if(!d)return'';var p=d.split('-');return p[0].slice(2)+'/'+p[1]+'/'+p[2];}}},y:{grid:{color:'#f0f2f5'},ticks:{callback:function(v){var m=v/1000000;return'₩'+(Number.isInteger(m)?m:m.toFixed(1))+'백만';},font:{size:11}}}}}});
 }
-// 인증 완료 후 데이터 로드
-window.onAuthReady = function(state) {
-  loadLabels(loadSnapshot);
-};
-function startApp() { if (typeof AUTH !== 'undefined') { AUTH.init(); } else { setTimeout(startApp, 100); } }
-startApp();
+loadLabels(loadSnapshot);
 </script>
 </body>
 </html>
