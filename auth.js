@@ -2,6 +2,8 @@
 // Google Identity Services (GIS) + WebAuthn (Face ID/지문)
 
 
+
+
 const AUTH_CONFIG = {
   CLIENT_ID: '245414285873-fkhamod3vgam0viqpf4si2o7j3lqgrg3.apps.googleusercontent.com',
   SHEETS_ID: '1BNEAoqxn4ZuTG8ZqRNI23Nnjh7rY5xQDpJUHyCLl1KA',
@@ -9,8 +11,9 @@ const AUTH_CONFIG = {
   WEBAUTHN_KEY: 'anju_webauthn_cred',
   TOKEN_KEY: 'anju_token',
 };
-h
 let _authState = null;
+
+
 
 
 function _showAuthScreen() {
@@ -34,5 +37,3 @@ function _showAuthScreen() {
                     background:#fff0f0; border-radius:8px; display:none; }
     </style>
     <div class="auth-card">
-      <div class="auth-logo">📊</div>
-      <div class="auth-title">안주주식마켓</div>
