@@ -1,50 +1,48 @@
 /**
  * auth.js - 안주주식마켓 인증 모듈
- * 흐름: Google OAuth redirect → Sheets 권한 확인 → PIN 설정 → 앱 진입
- * 페이지 이동 시 PIN 재요구 없음 (sessionStorage 활용)
+ * 잠금 해제 시각을 localStorage에 저장 → 30분 이내 페이지 이동은 PIN 스킵
  */
 (function () {
   'use strict';
 
-  const CLIENT_ID   = '245414285873-fkhamod3vgam0viqpf4si2o7j3lqgrg3.apps.googleusercontent.com';
-  const SHEET_ID    = '1BNEAoqxn4ZuTG8ZqRNI23Nnjh7rY5xQDpJUHyCLl1KA';
+  const CLIENT_ID    = '245414285873-fkhamod3vgam0viqpf4si2o7j3lqgrg3.apps.googleusercontent.com';
+  const SHEET_ID     = '1BNEAoqxn4ZuTG8ZqRNI23Nnjh7rY5xQDpJUHyCLl1KA';
   const REDIRECT_URI = location.origin + '/anju-stock-market/';
-  const SCOPE       = 'https://www.googleapis.com/auth/spreadsheets.readonly openid email profile';
+  const SCOPE        = 'https://www.googleapis.com/auth/spreadsheets.readonly openid email profile';
+  const UNLOCK_TTL   = 30 * 60 * 1000; // 30분: 이 시간 안에 페이지 이동하면 PIN 스킵
 
-  const KEY_TOKEN   = 'anju_token';
-  const KEY_EXPIRY  = 'anju_expiry';
-  const KEY_ROLE    = 'anju_role';
-  const KEY_PIN     = 'anju_pin';
-  const KEY_LOCKED  = 'anju_locked';
-  const KEY_SESSION = 'anju_session_ok'; // sessionStorage: 이 탭에서 PIN 해제됨
+  const KEY_TOKEN     = 'anju_token';
+  const KEY_EXPIRY    = 'anju_expiry';
+  const KEY_ROLE      = 'anju_role';
+  const KEY_PIN       = 'anju_pin';
+  const KEY_UNLOCKED  = 'anju_unlocked_at'; // 마지막 잠금해제 시각 (ms)
 
   async function sha256(text) {
     const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text));
-    return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
+    return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2,'0')).join('');
   }
 
-  const getToken  = () => localStorage.getItem(KEY_TOKEN);
-  const getExpiry = () => parseInt(localStorage.getItem(KEY_EXPIRY) || '0', 10);
-  const getRole   = () => localStorage.getItem(KEY_ROLE);
-  const getPin    = () => localStorage.getItem(KEY_PIN);
-  const isLocked  = () => localStorage.getItem(KEY_LOCKED) === '1';
+  const getToken   = () => localStorage.getItem(KEY_TOKEN);
+  const getExpiry  = () => parseInt(localStorage.getItem(KEY_EXPIRY) || '0', 10);
+  const getRole    = () => localStorage.getItem(KEY_ROLE);
+  const getPin     = () => localStorage.getItem(KEY_PIN);
 
-  // sessionStorage: 같은 탭 세션에서 PIN 이미 해제됐는지
-  const isSessionOk  = () => sessionStorage.getItem(KEY_SESSION) === '1';
-  const setSessionOk = () => sessionStorage.setItem(KEY_SESSION, '1');
-  const clearSessionOk = () => sessionStorage.removeItem(KEY_SESSION);
+  // 잠금 해제됐는지: KEY_UNLOCKED 시각이 UNLOCK_TTL 이내면 true
+  function isUnlocked() {
+    const t = parseInt(localStorage.getItem(KEY_UNLOCKED) || '0', 10);
+    return t > 0 && (Date.now() - t) < UNLOCK_TTL;
+  }
+  function markUnlocked() { localStorage.setItem(KEY_UNLOCKED, Date.now()); }
+  function markLocked()   { localStorage.removeItem(KEY_UNLOCKED); }
 
   function saveSession(token, expiresIn, role) {
     localStorage.setItem(KEY_TOKEN,  token);
     localStorage.setItem(KEY_EXPIRY, Date.now() + expiresIn * 1000);
     localStorage.setItem(KEY_ROLE,   role);
   }
-
   function clearSession() {
-    [KEY_TOKEN, KEY_EXPIRY, KEY_ROLE, KEY_PIN, KEY_LOCKED].forEach(k => localStorage.removeItem(k));
-    clearSessionOk();
+    [KEY_TOKEN, KEY_EXPIRY, KEY_ROLE, KEY_PIN, KEY_UNLOCKED].forEach(k => localStorage.removeItem(k));
   }
-
   const isTokenValid = () => !!getToken() && Date.now() < getExpiry();
 
   function startGoogleLogin() {
@@ -123,7 +121,8 @@
       #auth-overlay .pin-key.del{font-size:16px;color:#888}
       #auth-overlay .pin-key.wide{
         grid-column:span 3;padding:14px;margin-top:12px;
-        font-size:14px;color:#888;width:100%;
+        font-size:14px;color:#888;width:100%;border:none;
+        background:#f4f5f7;border-radius:12px;cursor:pointer;
       }
       #auth-overlay .auth-spinner{
         width:36px;height:36px;border:3px solid #e0e0e0;
@@ -194,11 +193,10 @@
   function showPinSetupScreen(onDone) {
     let step = 'first', firstPin = '', current = '';
     function render(msg) {
-      const isFirst = step === 'first';
       showOverlay(`
         <div class="auth-logo">🔐</div>
-        <div class="auth-title">${isFirst ? 'PIN 설정' : 'PIN 확인'}</div>
-        <div class="auth-sub">${isFirst ? '앱 잠금에 사용할 4자리 PIN을 설정해요' : '같은 PIN을 다시 입력해주세요'}</div>
+        <div class="auth-title">${step === 'first' ? 'PIN 설정' : 'PIN 확인'}</div>
+        <div class="auth-sub">${step === 'first' ? '앱 잠금에 사용할 4자리 PIN을 설정해요' : '같은 PIN을 다시 입력해주세요'}</div>
         <div class="pin-dots">
           <div class="pin-dot" id="d0"></div><div class="pin-dot" id="d1"></div>
           <div class="pin-dot" id="d2"></div><div class="pin-dot" id="d3"></div>
@@ -210,33 +208,26 @@
       renderKeypad('pinGrid', onKey);
     }
     function updateDots() {
-      for (let i = 0; i < 4; i++) {
-        const d = document.getElementById('d'+i);
-        if (d) d.classList.toggle('filled', i < current.length);
-      }
+      for (let i=0;i<4;i++) { const d=document.getElementById('d'+i); if(d) d.classList.toggle('filled',i<current.length); }
     }
     function onKey(v) {
-      if (v === 'del') current = current.slice(0,-1);
-      else if (current.length < 4) current += v;
+      if (v==='del') current=current.slice(0,-1); else if(current.length<4) current+=v;
       updateDots();
-      if (current.length === 4) setTimeout(submit, 100);
+      if (current.length===4) setTimeout(submit,100);
     }
     async function submit() {
-      if (step === 'first') { firstPin = current; current = ''; step = 'confirm'; render(); }
-      else if (current === firstPin) {
+      if (step==='first') { firstPin=current; current=''; step='confirm'; render(); }
+      else if (current===firstPin) {
         localStorage.setItem(KEY_PIN, await sha256(current));
-        localStorage.removeItem(KEY_LOCKED);
         onDone();
-      } else {
-        firstPin = ''; current = ''; step = 'first'; render('PIN이 달라요. 다시 설정해주세요.');
-      }
+      } else { firstPin=''; current=''; step='first'; render('PIN이 달라요. 다시 설정해주세요.'); }
     }
     window.__auth_skip = onDone;
-    current = ''; render();
+    current=''; render();
   }
 
   function showPinUnlockScreen(onSuccess, onFail) {
-    let current = '', attempts = 0;
+    let current='', attempts=0;
     function render(msg) {
       showOverlay(`
         <div class="auth-logo">🔒</div>
@@ -254,81 +245,73 @@
       window.__auth_relogin = () => { clearSession(); startGoogleLogin(); };
     }
     function updateDots() {
-      for (let i = 0; i < 4; i++) {
-        const d = document.getElementById('d'+i);
-        if (d) d.classList.toggle('filled', i < current.length);
-      }
+      for (let i=0;i<4;i++) { const d=document.getElementById('d'+i); if(d) d.classList.toggle('filled',i<current.length); }
     }
     function onKey(v) {
-      if (v === 'del') current = current.slice(0,-1);
-      else if (current.length < 4) current += v;
+      if (v==='del') current=current.slice(0,-1); else if(current.length<4) current+=v;
       updateDots();
-      if (current.length === 4) setTimeout(tryUnlock, 100);
+      if (current.length===4) setTimeout(tryUnlock,100);
     }
     async function tryUnlock() {
-      if (await sha256(current) === getPin()) { onSuccess(); }
-      else {
-        attempts++;
-        current = '';
-        attempts >= 5 ? onFail() : render(`틀렸어요. ${5-attempts}번 더 시도할 수 있어요.`);
-      }
+      if (await sha256(current)===getPin()) { onSuccess(); }
+      else { attempts++; current=''; attempts>=5 ? onFail() : render(`틀렸어요. ${5-attempts}번 더 시도할 수 있어요.`); }
     }
-    current = ''; render();
+    current=''; render();
   }
 
   function applyViewerRestrictions() {
     if (!document.getElementById('viewer-banner')) {
-      const b = document.createElement('div');
-      b.id = 'viewer-banner';
-      b.textContent = '👀 조회 전용 모드 — 거래 입력 및 설정 변경이 불가해요';
+      const b=document.createElement('div'); b.id='viewer-banner';
+      b.textContent='👀 조회 전용 모드 — 거래 입력 및 설정 변경이 불가해요';
       document.body.insertBefore(b, document.body.firstChild);
     }
     ['.save-btn','.del-ok-btn','.btn-del-trade','#btnSave','#btnManual','.btn-save-m','.btn-add','.btn-delete']
       .forEach(sel => document.querySelectorAll(sel).forEach(btn => {
-        btn.disabled = true; btn.style.opacity = '0.4'; btn.style.cursor = 'not-allowed';
+        btn.disabled=true; btn.style.opacity='0.4'; btn.style.cursor='not-allowed';
       }));
   }
 
   function enterApp(role) {
+    markUnlocked(); // 잠금 해제 시각 기록
     hideOverlay();
-    if (role === 'viewer') {
+    if (role==='viewer') {
       const apply = () => {
         applyViewerRestrictions();
-        new MutationObserver(applyViewerRestrictions).observe(document.body, { childList: true, subtree: true });
+        new MutationObserver(applyViewerRestrictions).observe(document.body,{childList:true,subtree:true});
       };
-      document.readyState === 'loading' ? document.addEventListener('DOMContentLoaded', apply) : apply();
+      document.readyState==='loading' ? document.addEventListener('DOMContentLoaded',apply) : apply();
     }
+    // 백그라운드 전환 감지 → 2분 이상이면 잠금
     let hiddenAt = null;
     document.addEventListener('visibilitychange', () => {
       if (document.hidden) {
         hiddenAt = Date.now();
-        if (getPin()) { localStorage.setItem(KEY_LOCKED, '1'); clearSessionOk(); }
       } else {
-        if (hiddenAt && Date.now() - hiddenAt > 2000 && getPin() && isLocked()) {
+        const away = hiddenAt ? Date.now() - hiddenAt : 0;
+        hiddenAt = null;
+        if (away > 2 * 60 * 1000 && getPin()) {
+          // 2분 이상 자리 비움 → 잠금
+          markLocked();
           showPinUnlockScreen(
-            () => { setSessionOk(); localStorage.removeItem(KEY_LOCKED); hideOverlay(); },
+            () => { markUnlocked(); hideOverlay(); },
             () => { clearSession(); startGoogleLogin(); }
           );
-        } else {
-          localStorage.removeItem(KEY_LOCKED);
-          if (getPin()) setSessionOk();
         }
-        hiddenAt = null;
       }
     });
   }
 
   function proceedToApp(role) {
     if (!getPin()) {
-      // PIN 미설정 → 설정 화면
-      showPinSetupScreen(() => { setSessionOk(); enterApp(role); });
-    } else if (isSessionOk()) {
-      // 같은 탭 세션에서 이미 PIN 해제 → 바로 진입
+      // PIN 미설정 → 설정 후 진입
+      showPinSetupScreen(() => enterApp(role));
+    } else if (isUnlocked()) {
+      // 최근 30분 이내 해제됨 → 바로 진입
       enterApp(role);
     } else {
-      // 새 탭/세션 → PIN 입력
+      // PIN 입력 필요
       showPinUnlockScreen(
-        () => { setSessionOk(); enterApp(role); },
+        () => enterApp(role),
         () => { clearSession(); startGoogleLogin(); }
       );
     }
@@ -341,7 +324,7 @@
       history.replaceState(null, '', location.pathname + location.search);
       showLoadingScreen('권한을 확인하는 중...');
       const role = await checkSheetsRole(tokenData.token);
-      if (role === 'none') { showNoAccessScreen(); return; }
+      if (role==='none') { showNoAccessScreen(); return; }
       saveSession(tokenData.token, tokenData.expiresIn, role);
       proceedToApp(role);
       return;
@@ -351,14 +334,14 @@
     showLoginScreen();
   }
 
-  document.readyState === 'loading'
+  document.readyState==='loading'
     ? document.addEventListener('DOMContentLoaded', init)
     : init();
 
   window.anjuAuth = {
     getRole, getToken,
-    isEditor: () => getRole() === 'editor',
-    isViewer: () => getRole() === 'viewer',
+    isEditor: () => getRole()==='editor',
+    isViewer: () => getRole()==='viewer',
     logout: () => { clearSession(); startGoogleLogin(); },
   };
 })();
