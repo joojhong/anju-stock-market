@@ -193,7 +193,9 @@ window.AUTH = {
       if (token) {
         const saved = JSON.parse(localStorage.getItem(AUTH_CONFIG.STORAGE_KEY) || '{}');
         _authState = { user: saved, token, role: saved.role || 'editor' };
-        resolve(_authState); return;
+        resolve(_authState);
+        _onAuthSuccess(_authState);
+        return;
       }
       const saved = JSON.parse(localStorage.getItem(AUTH_CONFIG.STORAGE_KEY) || '{}');
       const hasCred = localStorage.getItem(AUTH_CONFIG.WEBAUTHN_KEY);
