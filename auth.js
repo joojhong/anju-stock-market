@@ -101,28 +101,54 @@ function _setError(msg) { const el = document.getElementById('authError'); if (e
 
 window._googleSignIn = function() {
   _setStatus('Google 로그인 중...');
-  google.accounts.oauth2.initTokenClient({
-    client_id: AUTH_CONFIG.CLIENT_ID,
-    scope: 'https://www.googleapis.com/auth/spreadsheets.readonly email profile openid',
-    callback: async (tokenResponse) => {
-      if (tokenResponse.error) { _setStatus(''); _setError('로그인 실패: ' + tokenResponse.error); return; }
-      _setStatus('권한 확인 중...');
-      const token = tokenResponse.access_token;
-      try {
-        const role = await _checkSheetsPermission(token);
-        if (role === 'none') { _showBlockedScreen(); return; }
-        const userInfo = await _getUserInfo(token);
-        _authState = { user: userInfo, token, role };
-        sessionStorage.setItem(AUTH_CONFIG.TOKEN_KEY, token);
-        localStorage.setItem(AUTH_CONFIG.STORAGE_KEY, JSON.stringify({
-          email: userInfo.email, name: userInfo.name, picture: userInfo.picture, role
-        }));
-        const hasCred = localStorage.getItem(AUTH_CONFIG.WEBAUTHN_KEY);
-        if (!hasCred && window.PublicKeyCredential) await _registerWebAuthn(userInfo.email);
-        _onAuthSuccess(_authState);
-      } catch(e) { _setStatus(''); _setError('오류: ' + e.message); }
-    }
-  }).requestAccessToken();
+  const saved = JSON.parse(localStorage.getItem(AUTH_CONFIG.STORAGE_KEY) || '{}');
+  const hint = saved.email || '';
+
+  const handleToken = async (tokenResponse) => {
+    if (tokenResponse.error) { _setStatus(''); _setError('로그인 실패: ' + tokenResponse.error); return; }
+    _setStatus('권한 확인 중...');
+    const token = tokenResponse.access_token;
+    try {
+      const role = await _checkSheetsPermission(token);
+      if (role === 'none') { _showBlockedScreen(); return; }
+      const userInfo = await _getUserInfo(token);
+      _authState = { user: userInfo, token, role };
+      sessionStorage.setItem(AUTH_CONFIG.TOKEN_KEY, token);
+      localStorage.setItem(AUTH_CONFIG.STORAGE_KEY, JSON.stringify({
+        email: userInfo.email, name: userInfo.name, picture: userInfo.picture, role
+      }));
+      const hasCred = localStorage.getItem(AUTH_CONFIG.WEBAUTHN_KEY);
+      if (!hasCred && window.PublicKeyCredential) await _registerWebAuthn(userInfo.email);
+      _onAuthSuccess(_authState);
+    } catch(e) { _setStatus(''); _setError('오류: ' + e.message); }
+  };
+
+  if (hint) {
+    google.accounts.oauth2.initTokenClient({
+      client_id: AUTH_CONFIG.CLIENT_ID,
+      scope: 'https://www.googleapis.com/auth/spreadsheets.readonly email profile openid',
+      hint: hint,
+      prompt: 'none',
+      callback: async (resp) => {
+        if (resp.error) {
+          google.accounts.oauth2.initTokenClient({
+            client_id: AUTH_CONFIG.CLIENT_ID,
+            scope: 'https://www.googleapis.com/auth/spreadsheets.readonly email profile openid',
+            hint: hint,
+            callback: handleToken
+          }).requestAccessToken({prompt: ''});
+        } else {
+          await handleToken(resp);
+        }
+      }
+    }).requestAccessToken();
+  } else {
+    google.accounts.oauth2.initTokenClient({
+      client_id: AUTH_CONFIG.CLIENT_ID,
+      scope: 'https://www.googleapis.com/auth/spreadsheets.readonly email profile openid',
+      callback: handleToken
+    }).requestAccessToken();
+  }
 };
 
 async function _checkSheetsPermission(token) {
