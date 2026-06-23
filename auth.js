@@ -14,6 +14,14 @@ const AUTH_CONFIG = {
 
 let _authState = null;
 
+// 기기 감지: 버튼 텍스트 결정
+function _getBiometricLabel() {
+  const ua = navigator.userAgent;
+  if (/iPhone|iPad|iPod/i.test(ua)) return '🪪 Face ID / 지문 인증';
+  if (/Android/i.test(ua)) return '🪪 지문 인증';
+  return '🪪 Windows Hello / 지문 인증';
+}
+
 // ─────────────────────────────────────────
 // UI 렌더링 함수들
 // ─────────────────────────────────────────
@@ -55,6 +63,7 @@ function _showAuthScreen(errorMsg) {
 }
 
 function _showFaceIdScreen(saved) {
+  const biometricLabel = _getBiometricLabel();
   document.body.innerHTML = `
     <style>
       * { margin:0; padding:0; box-sizing:border-box; }
@@ -82,9 +91,7 @@ function _showFaceIdScreen(saved) {
       <div class="auth-title">다시 만나요!</div>
       <div class="auth-sub">생체 인증으로 빠르게 로그인</div>
       <div class="user-email">${saved.email || ''}</div>
-      <button class="btn-biometric" onclick="window._webAuthnSignIn()">
-        🪪 Windows Hello / 지문 인증
-      </button>
+      <button class="btn-biometric" onclick="window._webAuthnSignIn()">${biometricLabel}</button>
       <button class="btn-google-fallback" onclick="window._startGoogleRedirect()">
         Google 계정으로 다시 로그인
       </button>
