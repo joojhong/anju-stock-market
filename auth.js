@@ -314,11 +314,17 @@
     if (!getPin()) { showPinSetupScreen(()=>enterApp(role)); return; }
 
     // hide 있고 2분 미만 → 짧은 백그라운드 복귀 or 페이지 이동 → PIN 스킵
+    // 1) 앱 내 링크 클릭 페이지 이동 → nav_flag → PIN 스킵 (1회용)
+    if (localStorage.getItem(KEY_NAV_FLAG) === '1') {
+      localStorage.removeItem(KEY_NAV_FLAG);
+      enterApp(role);
+      return;
+    }
+
+    // 2) 짧은 백그라운드 복귀 (memToken 일치 + 2분 미만) → PIN 스킵
     if (isShortBg()) { enterApp(role); return; }
 
-    // 그 외 모두 PIN 요구
-    // - hide 없음: 재실행 or 첫 진입
-    // - hide 있고 2분 이상: 백그라운드 잠금
+    // 3) 그 외 모두 PIN 요구
     clearHideTime();
     showPinUnlockScreen(()=>enterApp(role), ()=>{clearSession();startGoogleLogin();});
   }
