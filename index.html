@@ -124,5 +124,38 @@ async function loadMarketIndices() {
 }
 loadMarketIndices();
 </script>
+
+<!-- DEBUG PANEL -->
+<div id="debug-panel" style="position:fixed;bottom:72px;left:0;right:0;background:#1a1f2e;color:#0f0;font-size:11px;font-family:monospace;padding:8px 12px;z-index:9998;max-height:160px;overflow-y:auto;border-top:2px solid #0f0;">
+  <div style="font-weight:bold;color:#ff0;margin-bottom:4px;">🔧 AUTH DEBUG</div>
+  <div id="dbg-content">로딩 중...</div>
+</div>
+<script>
+(function() {
+  function dbgUpdate() {
+    var hide = localStorage.getItem('anju_hide');
+    var hideAgo = hide ? Math.round((Date.now()-parseInt(hide))/1000)+'초전' : '없음';
+    var inApp = sessionStorage.getItem('anju_in_app');
+    var bgLocked = hide && (Date.now()-parseInt(hide))>=120000;
+    var lastPH = localStorage.getItem('anju_last_pagehide') || '없음';
+    var lastVis = localStorage.getItem('anju_last_visibility') || '없음';
+    document.getElementById('dbg-content').innerHTML =
+      'role:'+localStorage.getItem('anju_role')+'  pin:'+(localStorage.getItem('anju_pin')?'있음':'없음')+'<br>'+
+      'hide:'+hideAgo+'  bgLocked:'+bgLocked+'<br>'+
+      'inApp(SS):'+inApp+'<br>'+
+      'pagehide발동:'+lastPH+'<br>'+
+      'visibility:'+lastVis;
+  }
+  dbgUpdate();
+  setInterval(dbgUpdate, 1000);
+  window.addEventListener('pagehide', function() {
+    localStorage.setItem('anju_last_pagehide', new Date().toLocaleTimeString());
+  });
+  document.addEventListener('visibilitychange', function() {
+    localStorage.setItem('anju_last_visibility', (document.hidden?'hidden':'visible')+'@'+new Date().toLocaleTimeString());
+  });
+})();
+</script>
+<!-- END DEBUG -->
 </body>
 </html>
