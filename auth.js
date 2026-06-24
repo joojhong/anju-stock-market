@@ -1,20 +1,17 @@
 /**
  * auth.js - 안주주식마켓 인증 모듈
  *
- * 잠금 규칙:
- *  - 최초 실행 → 구글 로그인 (1회만)
- *  - 앱 완전 종료 후 재실행 → PIN 요구
- *  - 백그라운드 2분 이상 복귀 → PIN 요구
- *  - 백그라운드 2분 미만 복귀 → PIN 스킵
- *  - 페이지 이동(앱 내 링크 클릭) → PIN 스킵
- *  - Google 토큰 만료(1시간 이후) → PIN으로 해결 (구글 재로그인 불필요)
+ * iOS PWA 대응 전략:
+ *  - sessionStorage: iOS PWA에서 앱 종료 후에도 유지됨 → 사용 안함
+ *  - pagehide: iOS에서 hide 시각 기록이 불안정 → freeze/visibilitychange 병행
+ *  - 잠금 판단: KEY_HIDE(숨긴 시각) vs KEY_BOOT(현재 실행 시각) 비교
  *
- * 구현:
- *  - sessionStorage('anju_in_app') 로 페이지 이동 감지 (PWA 재실행과 정확히 구분)
- *  - pagehide + visibilitychange 로 숨김 시각 기록 (PIN 유무 관계없이 항상)
- *  - 재실행 시: sessionStorage 초기화됨 → PIN 요구
- *  - 백그라운드 복귀 시: hide 기록 2분 초과 → PIN, 미만 → 스킵
- *  - GAS 웜업: 진입 시 GAS 핑 요청으로 콜드스타트 방지
+ * 잠금 규칙:
+ *  - 최초 실행 → 구글 로그인
+ *  - 앱 재실행 or 백그라운드 2분 이상 → PIN 요구
+ *  - 백그라운드 2분 미만 → PIN 스킵
+ *  - 페이지 이동(앱 내) → PIN 스킵
+ *  - Google 토큰 만료 → PIN으로 해결 (구글 재로그인 불필요)
  */
 (function () {
   'use strict';
@@ -29,7 +26,9 @@
   const KEY_EXPIRY = 'anju_expiry';
   const KEY_ROLE   = 'anju_role';
   const KEY_PIN    = 'anju_pin';
-  const KEY_HIDE   = 'anju_hide';
+  const KEY_HIDE   = 'anju_hide';   // 마지막으로 숨긴 시각
+  const KEY_BOOT   = 'anju_boot';   // 현재 앱 실행(boot) 시각
+  const KEY_NAV    = 'anju_nav';    // 앱 내 페이지 이동 플래그 (localStorage)
 
   async function sha256(text) {
     const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text));
@@ -37,28 +36,49 @@
   }
 
   const getToken     = () => localStorage.getItem(KEY_TOKEN);
-  const getExpiry    = () => parseInt(localStorage.getItem(KEY_EXPIRY) || '0', 10);
   const getRole      = () => localStorage.getItem(KEY_ROLE);
   const getPin       = () => localStorage.getItem(KEY_PIN);
-  const isTokenValid = () => !!getToken() && Date.now() < getExpiry();
   const hasSession   = () => !!getRole();
+  const isTokenValid = () => !!getToken() && Date.now() < parseInt(localStorage.getItem(KEY_EXPIRY)||'0',10);
 
   const saveHideTime  = () => localStorage.setItem(KEY_HIDE, String(Date.now()));
   const clearHideTime = () => localStorage.removeItem(KEY_HIDE);
-  const getHideTime   = () => parseInt(localStorage.getItem(KEY_HIDE) || '0', 10);
+  const getHideTime   = () => parseInt(localStorage.getItem(KEY_HIDE)||'0',10);
 
-  // 앱 내 페이지 이동 감지 (sessionStorage 방식)
-  // sessionStorage는 탭/앱 완전 종료 시 자동 초기화 → PWA 재실행과 정확히 구분됨
+  // 앱 내 페이지 이동 감지
+  // localStorage에 boot 시각을 기록하고, nav 플래그로 페이지 이동을 표시
+  // boot 시각이 같은 nav 플래그만 유효 → 앱 재실행 시 boot 시각이 달라져서 무효화
   function isPageNav() {
-    return sessionStorage.getItem('anju_in_app') === '1';
+    const nav = localStorage.getItem(KEY_NAV);
+    const boot = localStorage.getItem(KEY_BOOT);
+    if (!nav || !boot) return false;
+    try {
+      const parsed = JSON.parse(nav);
+      return parsed.boot === boot;
+    } catch(e) { return false; }
   }
+
   function markInApp() {
-    sessionStorage.setItem('anju_in_app', '1');
+    const boot = localStorage.getItem(KEY_BOOT);
+    if (boot) localStorage.setItem(KEY_NAV, JSON.stringify({boot}));
+  }
+
+  // 이번 실행의 boot 시각 기록 (init 시 최초 1회)
+  function recordBoot() {
+    // 이전 hide 기록이 있고 2분 미만이면 → 같은 세션(백그라운드 복귀)
+    // 이전 hide 기록이 없거나 2분 이상이면 → 새 부팅
+    const hide = getHideTime();
+    const isSameSession = hide > 0 && (Date.now() - hide) < BG_LOCK_MS && isPageNav();
+    if (!isSameSession) {
+      // 새 부팅 → boot 시각 갱신, nav 플래그 초기화
+      localStorage.setItem(KEY_BOOT, String(Date.now()));
+      localStorage.removeItem(KEY_NAV);
+    }
   }
 
   function isBgLocked() {
-    const t = getHideTime();
-    return t > 0 && (Date.now() - t) >= BG_LOCK_MS;
+    const hide = getHideTime();
+    return hide > 0 && (Date.now() - hide) >= BG_LOCK_MS;
   }
 
   function saveSession(token, expiresIn, role) {
@@ -67,7 +87,7 @@
     localStorage.setItem(KEY_ROLE,   role);
   }
   function clearSession() {
-    [KEY_TOKEN, KEY_EXPIRY, KEY_ROLE, KEY_PIN, KEY_HIDE].forEach(k => localStorage.removeItem(k));
+    [KEY_TOKEN, KEY_EXPIRY, KEY_ROLE, KEY_PIN, KEY_HIDE, KEY_BOOT, KEY_NAV].forEach(k => localStorage.removeItem(k));
   }
 
   function startGoogleLogin() {
@@ -252,12 +272,20 @@
       }));
   }
 
-  let _bgListenersRegistered = false;
+  function registerHideListeners() {
+    // iOS PWA에서 확실히 동작하는 이벤트들 모두 등록
+    const doHide = () => saveHideTime();
+    window.addEventListener('pagehide',        doHide, {capture:true});
+    window.addEventListener('freeze',          doHide, {capture:true}); // iOS 백그라운드 freeze
+    document.addEventListener('visibilitychange', () => { if (document.hidden) doHide(); }, {capture:true});
+    // blur: 앱 전환 시 발생
+    window.addEventListener('blur', doHide, {capture:true});
+  }
 
   function enterApp(role) {
     clearHideTime();
     hideOverlay();
-    markInApp(); // 앱 내 세션 마킹 (페이지 이동 시 PIN 스킵용)
+    markInApp();
     if (role==='viewer') {
       const apply=()=>{
         applyViewerRestrictions();
@@ -265,30 +293,30 @@
       };
       document.readyState==='loading'?document.addEventListener('DOMContentLoaded',apply):apply();
     }
-    if (!_bgListenersRegistered) {
-      _bgListenersRegistered = true;
-      window.addEventListener('pagehide', saveHideTime);
-      document.addEventListener('visibilitychange', ()=>{ if (document.hidden) saveHideTime(); });
-    }
+    registerHideListeners();
   }
 
   function proceedToApp(role) {
     if (!getPin()) { showPinSetupScreen(()=>enterApp(role)); return; }
-    if (isPageNav()) { enterApp(role); return; }
-    if (isBgLocked()) { clearHideTime(); showPinUnlockScreen(()=>enterApp(role), ()=>{clearSession();startGoogleLogin();}); return; }
-    if (getHideTime() > 0) { enterApp(role); return; }
+
+    // 앱 내 페이지 이동 + 2분 미만 → PIN 스킵
+    if (isPageNav() && !isBgLocked()) { enterApp(role); return; }
+
+    // 그 외 → PIN 요구 (재실행, 2분 이상 백그라운드)
+    clearHideTime();
     showPinUnlockScreen(()=>enterApp(role), ()=>{clearSession();startGoogleLogin();});
   }
 
   function warmupGAS() {
     try {
       const gasUrl = window.GAS_URL;
-      if (gasUrl) fetch(gasUrl + '?action=ping', { method: 'GET', cache: 'no-store' }).catch(()=>{});
+      if (gasUrl) fetch(gasUrl + '?action=ping', {method:'GET', cache:'no-store'}).catch(()=>{});
     } catch(e) {}
   }
 
   async function init() {
     injectStyles();
+fix: iOS PWA PIN - freeze/blur events + localStorage boot flag
     const td = parseHashToken();
     if (td) {
       history.replaceState(null,'',location.pathname+location.search);
