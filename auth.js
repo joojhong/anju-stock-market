@@ -254,7 +254,11 @@
       }));
   }
 
+  // 중복 등록 방지: 최초 1회만 등록
+  let _hideListenersRegistered = false;
   function registerHideListeners() {
+    if (_hideListenersRegistered) return;
+    _hideListenersRegistered = true;
     const doHide = () => saveHideTime();
     // blur 제거: 화면 터치시에도 발동되어 오작동 유발
     window.addEventListener('pagehide',           doHide, {capture:true});
