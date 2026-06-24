@@ -240,9 +240,9 @@
 
   function registerHideListeners() {
     const doHide = () => saveHideTime();
+    // blur 제거: 화면 터치시에도 발동되어 오작동 유발
     window.addEventListener('pagehide',           doHide, {capture:true});
     window.addEventListener('freeze',             doHide, {capture:true});
-    window.addEventListener('blur',               doHide, {capture:true});
     document.addEventListener('visibilitychange', () => { if (document.hidden) doHide(); }, {capture:true});
   }
 
