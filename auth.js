@@ -10,9 +10,9 @@
  *  - Google 토큰 만료(1시간 이후) → PIN으로 해결 (구글 재로그인 불필요)
  *
  * 구현:
- *  - document.referrer 로 페이지 이동 감지
+ *  - sessionStorage('anju_in_app') 로 페이지 이동 감지 (PWA 재실행과 정확히 구분)
  *  - pagehide + visibilitychange 로 숨김 시각 기록 (PIN 유무 관계없이 항상)
- *  - 재실행 시: referrer 없음 + hide 기록 없음 → PIN
+ *  - 재실행 시: sessionStorage 초기화됨 → PIN 요구
  *  - 백그라운드 복귀 시: hide 기록 2분 초과 → PIN, 미만 → 스킵
  *  - GAS 웜업: 진입 시 GAS 핑 요청으로 콜드스타트 방지
  */
@@ -47,9 +47,13 @@
   const clearHideTime = () => localStorage.removeItem(KEY_HIDE);
   const getHideTime   = () => parseInt(localStorage.getItem(KEY_HIDE) || '0', 10);
 
+  // 앱 내 페이지 이동 감지 (sessionStorage 방식)
+  // sessionStorage는 탭/앱 완전 종료 시 자동 초기화 → PWA 재실행과 정확히 구분됨
   function isPageNav() {
-    const ref = document.referrer;
-    return ref.startsWith(location.origin + '/anju-stock-market/');
+    return sessionStorage.getItem('anju_in_app') === '1';
+  }
+  function markInApp() {
+    sessionStorage.setItem('anju_in_app', '1');
   }
 
   function isBgLocked() {
@@ -253,6 +257,7 @@
   function enterApp(role) {
     clearHideTime();
     hideOverlay();
+    markInApp(); // 앱 내 세션 마킹 (페이지 이동 시 PIN 스킵용)
     if (role==='viewer') {
       const apply=()=>{
         applyViewerRestrictions();
