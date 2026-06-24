@@ -27,6 +27,7 @@
   const KEY_PIN    = 'anju_pin';
   const KEY_HIDE       = 'anju_hide';
   const KEY_HIDE_TOKEN = 'anju_hide_tok'; // hide 시 발급한 토큰 (localStorage)
+  const KEY_NAV_FLAG   = 'anju_nav';      // 앱 내 링크 클릭 → 페이지 이동 감지용
   // 메모리 토큰: 앱이 살아있는 동안만 존재. 완전 종료 시 사라짐.
   let _memHideToken = null;
 
@@ -69,7 +70,7 @@
   }
   function clearSession() {
     _memHideToken = null;
-    [KEY_TOKEN, KEY_EXPIRY, KEY_ROLE, KEY_PIN, KEY_HIDE, KEY_HIDE_TOKEN].forEach(k => localStorage.removeItem(k));
+    [KEY_TOKEN, KEY_EXPIRY, KEY_ROLE, KEY_PIN, KEY_HIDE, KEY_HIDE_TOKEN, KEY_NAV_FLAG].forEach(k => localStorage.removeItem(k));
   }
 
   function startGoogleLogin() {
@@ -284,9 +285,21 @@
     }, {capture:true});
   }
 
+  function registerNavListeners() {
+    document.addEventListener('click', (e) => {
+      const a = e.target.closest('a[href]');
+      if (!a) return;
+      const href = a.getAttribute('href');
+      if (href && !href.startsWith('http') && !href.startsWith('#') && href.includes('.html')) {
+        localStorage.setItem(KEY_NAV_FLAG, '1');
+      }
+    }, {capture: true});
+  }
+
   function enterApp(role) {
     clearHideTime();
     hideOverlay();
+    registerNavListeners();
     if (role==='viewer') {
       const apply=()=>{
         applyViewerRestrictions();
