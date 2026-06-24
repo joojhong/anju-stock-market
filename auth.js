@@ -2,15 +2,19 @@
  * auth.js - 안주주식마켓 인증 모듈
  *
  * 잠금 규칙:
+ *  - 최초 실행 → 구글 로그인 (1회만)
  *  - 앱 완전 종료 후 재실행 → PIN 요구
  *  - 백그라운드 2분 이상 복귀 → PIN 요구
+ *  - 백그라운드 2분 미만 복귀 → PIN 스킵
  *  - 페이지 이동(앱 내 링크 클릭) → PIN 스킵
+ *  - Google 토큰 만료(1시간 이후) → PIN으로 해결 (구글 재로그인 불필요)
  *
  * 구현:
  *  - document.referrer 로 페이지 이동 감지
- *  - pagehide + visibilitychange 로 숨김 시각 기록
+ *  - pagehide + visibilitychange 로 숨김 시각 기록 (PIN 유무 관계없이 항상)
  *  - 재실행 시: referrer 없음 + hide 기록 없음 → PIN
- *  - 백그라운드 복귀 시: hide 기록 2분 초과 → PIN
+ *  - 백그라운드 복귀 시: hide 기록 2분 초과 → PIN, 미만 → 스킵
+ *  - GAS 웜업: 진입 시 GAS 핑 요청으로 콜드스타트 방지
  */
 (function () {
   'use strict';
@@ -19,13 +23,13 @@
   const SHEET_ID     = '1BNEAoqxn4ZuTG8ZqRNI23Nnjh7rY5xQDpJUHyCLl1KA';
   const REDIRECT_URI = location.origin + '/anju-stock-market/';
   const SCOPE        = 'https://www.googleapis.com/auth/spreadsheets.readonly openid email profile';
-  const BG_LOCK_MS   = 2 * 60 * 1000; // 백그라운드 잠금: 2분
+  const BG_LOCK_MS   = 2 * 60 * 1000;
 
   const KEY_TOKEN  = 'anju_token';
   const KEY_EXPIRY = 'anju_expiry';
   const KEY_ROLE   = 'anju_role';
   const KEY_PIN    = 'anju_pin';
-  const KEY_HIDE   = 'anju_hide'; // 숨긴 시각 (ms)
+  const KEY_HIDE   = 'anju_hide';
 
   async function sha256(text) {
     const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text));
@@ -37,18 +41,17 @@
   const getRole      = () => localStorage.getItem(KEY_ROLE);
   const getPin       = () => localStorage.getItem(KEY_PIN);
   const isTokenValid = () => !!getToken() && Date.now() < getExpiry();
+  const hasSession   = () => !!getRole();
 
   const saveHideTime  = () => localStorage.setItem(KEY_HIDE, String(Date.now()));
   const clearHideTime = () => localStorage.removeItem(KEY_HIDE);
   const getHideTime   = () => parseInt(localStorage.getItem(KEY_HIDE) || '0', 10);
 
-  // 앱 내 페이지 이동인지 (referrer가 같은 앱 주소)
   function isPageNav() {
     const ref = document.referrer;
     return ref.startsWith(location.origin + '/anju-stock-market/');
   }
 
-  // 백그라운드 2분 이상 경과했는지
   function isBgLocked() {
     const t = getHideTime();
     return t > 0 && (Date.now() - t) >= BG_LOCK_MS;
@@ -245,6 +248,8 @@
       }));
   }
 
+  let _bgListenersRegistered = false;
+
   function enterApp(role) {
     clearHideTime();
     hideOverlay();
@@ -255,32 +260,26 @@
       };
       document.readyState==='loading'?document.addEventListener('DOMContentLoaded',apply):apply();
     }
-    if (getPin()) {
-      // pagehide: 앱 종료/탭 닫기 시 발생 → 숨김 시각 기록
+    if (!_bgListenersRegistered) {
+      _bgListenersRegistered = true;
       window.addEventListener('pagehide', saveHideTime);
-      // visibilitychange: 백그라운드 전환 시 발생
       document.addEventListener('visibilitychange', ()=>{ if (document.hidden) saveHideTime(); });
     }
   }
 
   function proceedToApp(role) {
-    if (!getPin()) {
-      showPinSetupScreen(()=>enterApp(role));
-      return;
-    }
-    // 1) 앱 내 페이지 이동 → PIN 스킵
-    if (isPageNav()) {
-      enterApp(role);
-      return;
-    }
-    // 2) 백그라운드 2분 이상 → PIN 요구
-    if (isBgLocked()) {
-      clearHideTime();
-      showPinUnlockScreen(()=>enterApp(role), ()=>{clearSession();startGoogleLogin();});
-      return;
-    }
-    // 3) 나머지 (앱 재실행, hide 기록 없음 포함) → PIN 요구
+    if (!getPin()) { showPinSetupScreen(()=>enterApp(role)); return; }
+    if (isPageNav()) { enterApp(role); return; }
+    if (isBgLocked()) { clearHideTime(); showPinUnlockScreen(()=>enterApp(role), ()=>{clearSession();startGoogleLogin();}); return; }
+    if (getHideTime() > 0) { enterApp(role); return; }
     showPinUnlockScreen(()=>enterApp(role), ()=>{clearSession();startGoogleLogin();});
+  }
+
+  function warmupGAS() {
+    try {
+      const gasUrl = window.GAS_URL;
+      if (gasUrl) fetch(gasUrl + '?action=ping', { method: 'GET', cache: 'no-store' }).catch(()=>{});
+    } catch(e) {}
   }
 
   async function init() {
@@ -292,10 +291,11 @@
       const role = await checkSheetsRole(td.token);
       if (role==='none') { showNoAccessScreen(); return; }
       saveSession(td.token, td.expiresIn, role);
+      warmupGAS();
       proceedToApp(role);
       return;
     }
-    if (isTokenValid()) { proceedToApp(getRole()); return; }
+    if (hasSession()) { warmupGAS(); proceedToApp(getRole()); return; }
     clearSession();
     showLoginScreen();
   }
