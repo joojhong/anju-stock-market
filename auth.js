@@ -83,7 +83,7 @@
     sessionStorage.setItem('oauth_state', state);
     location.href = 'https://accounts.google.com/o/oauth2/v2/auth?' + new URLSearchParams({
       client_id: CLIENT_ID, redirect_uri: REDIRECT_URI,
-      response_type: 'token', scope: SCOPE, state, prompt: 'select_account',
+      response_type: 'token', scope: SCOPE, state, prompt: 'consent',
     });
   }
 
