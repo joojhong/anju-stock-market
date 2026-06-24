@@ -100,23 +100,26 @@
 
   async function checkSheetsRole(token) {
     try {
-      // Drive API capabilities: 본인 기준으로 반환되므로 뷰어도 정상 조회 가능
-      const r = await fetch(
-        `https://www.googleapis.com/drive/v3/files/${SHEET_ID}?fields=capabilities`,
+      // 이메일 조회
+      const uinfoR = await fetch(
+        'https://www.googleapis.com/oauth2/v1/userinfo',
         { headers: { Authorization: 'Bearer ' + token } }
       );
-      if (r.status === 403 || r.status === 401) return 'none';
+      if (!uinfoR.ok) return 'none';
+      const uinfo = await uinfoR.json();
+      const email = uinfo.email || '';
+      if (!email) return 'none';
+
+      // GAS로 권한 확인 (소유자 권한으로 실행되므로 정확함)
+      const gasUrl = window.GAS_URL;
+      if (!gasUrl) return 'none';
+      const r = await fetch(
+        `${gasUrl}?action=checkRole&email=${encodeURIComponent(email)}`,
+        { method: 'GET', cache: 'no-store' }
+      );
       if (!r.ok) return 'none';
-
       const data = await r.json();
-      const cap = data.capabilities || {};
-
-      // canEdit: true → owner 또는 editor
-      // commenter: canComment:true & canEdit:false → none 처리
-      // reader: canEdit:false & canComment:false → viewer
-      if (cap.canEdit) return 'editor';
-      if (cap.canComment && !cap.canEdit) return 'none';
-      return 'viewer';
+      return data.role || 'none';
 
     } catch { return 'none'; }
   }
