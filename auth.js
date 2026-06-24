@@ -255,15 +255,33 @@
   }
 
   // 중복 등록 방지: 최초 1회만 등록
-  let _hideListenersRegistered = false;
-  function registerHideListeners() {
-    if (_hideListenersRegistered) return;
-    _hideListenersRegistered = true;
+  let _listenersRegistered = false;
+  function registerLifecycleListeners(role) {
+    if (_listenersRegistered) return;
+    _listenersRegistered = true;
+
+    // 백그라운드로 나갈 때 hide 시각 저장
     const doHide = () => saveHideTime();
-    // blur 제거: 화면 터치시에도 발동되어 오작동 유발
-    window.addEventListener('pagehide',           doHide, {capture:true});
-    window.addEventListener('freeze',             doHide, {capture:true});
-    document.addEventListener('visibilitychange', () => { if (document.hidden) doHide(); }, {capture:true});
+    window.addEventListener('pagehide', doHide, {capture:true});
+    window.addEventListener('freeze',   doHide, {capture:true});
+
+    // visibilitychange: 나갈 때 저장 + 복귀 시 PIN 체크
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) {
+        doHide();
+      } else {
+        // 포그라운드 복귀 - PIN 잠금 여부 확인
+        if (!getPin()) return; // PIN 미설정 시 스킵
+        if (!isShortBg()) {
+          // 2분 이상 경과 또는 hide 기록 없음 → PIN 요구
+          clearHideTime();
+          showPinUnlockScreen(
+            () => enterApp(role),
+            () => { clearSession(); startGoogleLogin(); }
+          );
+        }
+      }
+    }, {capture:true});
   }
 
   function enterApp(role) {
@@ -276,7 +294,7 @@
       };
       document.readyState==='loading'?document.addEventListener('DOMContentLoaded',apply):apply();
     }
-    registerHideListeners();
+    registerLifecycleListeners(role);
   }
 
   function proceedToApp(role) {
