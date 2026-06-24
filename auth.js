@@ -100,26 +100,24 @@
 
   async function checkSheetsRole(token) {
     try {
-      // 이메일 조회
-      const uinfoR = await fetch(
-        'https://www.googleapis.com/oauth2/v1/userinfo',
+      // 1단계: 빈 batchUpdate로 쓰기 권한 확인 (editor vs viewer/none)
+      const writeR = await fetch(
+        `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}:batchUpdate`,
+        {
+          method: 'POST',
+          headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ requests: [] })
+        }
+      );
+      if (writeR.status === 200) return 'editor';
+
+      // 2단계: 읽기 시도로 viewer vs none 구분
+      const readR = await fetch(
+        `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/A1`,
         { headers: { Authorization: 'Bearer ' + token } }
       );
-      if (!uinfoR.ok) return 'none';
-      const uinfo = await uinfoR.json();
-      const email = uinfo.email || '';
-      if (!email) return 'none';
-
-      // GAS로 권한 확인 (소유자 권한으로 실행되므로 정확함)
-      const gasUrl = window.GAS_URL;
-      if (!gasUrl) return 'none';
-      const r = await fetch(
-        `${gasUrl}?action=checkRole&email=${encodeURIComponent(email)}`,
-        { method: 'GET', cache: 'no-store' }
-      );
-      if (!r.ok) return 'none';
-      const data = await r.json();
-      return data.role || 'none';
+      if (readR.status === 200) return 'viewer';
+      return 'none';
 
     } catch { return 'none'; }
   }
