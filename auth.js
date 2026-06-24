@@ -7,7 +7,7 @@
  *  - hide 있고 2분 이상 경과 → PIN
  *  - hide 있고 2분 미만 → PIN 스킵 (짧은 백그라운드 or 페이지 이동)
  *  - Google 토큰 만료 → PIN으로 해결
- *
+ 
  * iOS PWA 대응:
  *  - sessionStorage/localStorage 기반 nav 플래그 → 신뢰 불가, 제거
  *  - hide 기록: blur + freeze + visibilitychange + pagehide 모두 등록
@@ -259,7 +259,7 @@
     if (!document.getElementById('viewer-banner')) {
       const b=document.createElement('div'); b.id='viewer-banner';
       b.textContent='👀 조회 전용 모드 — 거래 입력 및 설정 변경이 불가해요';
-      document.body.insertBefore(b,document.body.firstChild);
+      document.body.insertBefore(b,document.body.firstChild);          document.body.style.paddingTop=b.offsetHeight+'px';
     }
     ['.save-btn','.del-ok-btn','.btn-del-trade',
      '.btn-edit','.btn-delete','.btn-add','.btn-save-m','#btnSaveM',
