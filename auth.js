@@ -254,7 +254,7 @@
     // snapshot: 설정저장, 지금스냅샷저장
     ['.save-btn','.del-ok-btn','.btn-del-trade',
      '.btn-edit','.btn-delete','.btn-add','.btn-save-m','#btnSaveM',
-     '#btnSave','.btn-manual','#btnManual']
+     '#btnSave','.btn-submit','btn-manual','#btnManual']
       .forEach(sel=>document.querySelectorAll(sel).forEach(btn=>{
         btn.disabled=true; btn.style.opacity='0.4'; btn.style.cursor='not-allowed';
       }));
