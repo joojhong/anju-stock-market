@@ -249,7 +249,12 @@
       b.textContent='👀 조회 전용 모드 — 거래 입력 및 설정 변경이 불가해요';
       document.body.insertBefore(b,document.body.firstChild);
     }
-    ['.save-btn','.del-ok-btn','.btn-del-trade','#btnSave','#btnManual','.btn-save-m','.btn-add','.btn-delete']
+    // trading: 거래저장, 삭제확인, 삭제버튼
+    // setting: 수정, 삭제, 추가, 모달저장
+    // snapshot: 설정저장, 지금스냅샷저장
+    ['.save-btn','.del-ok-btn','.btn-del-trade',
+     '.btn-edit','.btn-delete','.btn-add','.btn-save-m','#btnSaveM',
+     '#btnSave','.btn-manual','#btnManual']
       .forEach(sel=>document.querySelectorAll(sel).forEach(btn=>{
         btn.disabled=true; btn.style.opacity='0.4'; btn.style.cursor='not-allowed';
       }));
