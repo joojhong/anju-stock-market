@@ -100,42 +100,23 @@
 
   async function checkSheetsRole(token) {
     try {
-      // Drive API로 실제 공유 권한(role) 확인
+      // Drive API capabilities: 본인 기준으로 반환되므로 뷰어도 정상 조회 가능
       const r = await fetch(
-        `https://www.googleapis.com/drive/v3/files/${SHEET_ID}?fields=permissions`,
+        `https://www.googleapis.com/drive/v3/files/${SHEET_ID}?fields=capabilities`,
         { headers: { Authorization: 'Bearer ' + token } }
       );
       if (r.status === 403 || r.status === 401) return 'none';
       if (!r.ok) return 'none';
 
       const data = await r.json();
-      const permissions = data.permissions || [];
+      const cap = data.capabilities || {};
 
-      // 자신의 permission 찾기 (emailAddress 또는 me)
-      // 자신의 이메일을 알기 위해 userinfo 조회
-      const uinfoR = await fetch(
-        'https://www.googleapis.com/oauth2/v1/userinfo',
-        { headers: { Authorization: 'Bearer ' + token } }
-      );
-      if (!uinfoR.ok) return 'none';
-      const uinfo = await uinfoR.json();
-      const myEmail = (uinfo.email || '').toLowerCase();
-
-      // permissions 중 내 이메일과 일치하는 항목 찾기
-      const mine = permissions.find(p =>
-        (p.emailAddress || '').toLowerCase() === myEmail ||
-        p.type === 'user' && (p.emailAddress || '').toLowerCase() === myEmail
-      );
-
-      if (!mine) return 'none';
-
-      // role 판정
-      // owner, writer → editor
-      // reader → viewer
-      // commenter, 그 외 → none
-      if (mine.role === 'owner' || mine.role === 'writer') return 'editor';
-      if (mine.role === 'reader') return 'viewer';
-      return 'none';
+      // canEdit: true → owner 또는 editor
+      // commenter: canComment:true & canEdit:false → none 처리
+      // reader: canEdit:false & canComment:false → viewer
+      if (cap.canEdit) return 'editor';
+      if (cap.canComment && !cap.canEdit) return 'none';
+      return 'viewer';
 
     } catch { return 'none'; }
   }
