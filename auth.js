@@ -25,7 +25,10 @@
   const KEY_EXPIRY = 'anju_expiry';
   const KEY_ROLE   = 'anju_role';
   const KEY_PIN    = 'anju_pin';
-  const KEY_HIDE   = 'anju_hide';
+  const KEY_HIDE       = 'anju_hide';
+  const KEY_HIDE_TOKEN = 'anju_hide_tok'; // hide 시 발급한 토큰 (localStorage)
+  // 메모리 토큰: 앱이 살아있는 동안만 존재. 완전 종료 시 사라짐.
+  let _memHideToken = null;
 
   async function sha256(text) {
     const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text));
@@ -37,14 +40,26 @@
   const getPin     = () => localStorage.getItem(KEY_PIN);
   const hasSession = () => !!getRole();
 
-  const saveHideTime  = () => localStorage.setItem(KEY_HIDE, String(Date.now()));
-  const clearHideTime = () => localStorage.removeItem(KEY_HIDE);
+  const saveHideTime  = () => {
+    const tok = Math.random().toString(36).slice(2);
+    _memHideToken = tok; // 메모리에 보관
+    localStorage.setItem(KEY_HIDE_TOKEN, tok);
+    localStorage.setItem(KEY_HIDE, String(Date.now()));
+  };
+  const clearHideTime = () => {
+    _memHideToken = null;
+    localStorage.removeItem(KEY_HIDE);
+    localStorage.removeItem(KEY_HIDE_TOKEN);
+  };
   const getHideTime   = () => parseInt(localStorage.getItem(KEY_HIDE)||'0', 10);
 
-  // hide 있고 2분 미만 → 짧은 백그라운드 복귀 → PIN 스킵
+  // hide 있고 2분 미만이고 메모리 토큰 일치 → 백그라운드 복귀 → PIN 스킵
+  // 앱 완전 종료 시: 메모리 사라짐 → _memHideToken=null → 토큰 불일치 → PIN 요구
   function isShortBg() {
     const t = getHideTime();
-    return t > 0 && (Date.now() - t) < BG_LOCK_MS;
+    if (t <= 0 || (Date.now() - t) >= BG_LOCK_MS) return false;
+    const storedTok = localStorage.getItem(KEY_HIDE_TOKEN);
+    return !!_memHideToken && _memHideToken === storedTok;
   }
 
   function saveSession(token, expiresIn, role) {
@@ -53,7 +68,8 @@
     localStorage.setItem(KEY_ROLE,   role);
   }
   function clearSession() {
-    [KEY_TOKEN, KEY_EXPIRY, KEY_ROLE, KEY_PIN, KEY_HIDE].forEach(k => localStorage.removeItem(k));
+    _memHideToken = null;
+    [KEY_TOKEN, KEY_EXPIRY, KEY_ROLE, KEY_PIN, KEY_HIDE, KEY_HIDE_TOKEN].forEach(k => localStorage.removeItem(k));
   }
 
   function startGoogleLogin() {
