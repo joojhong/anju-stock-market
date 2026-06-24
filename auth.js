@@ -227,7 +227,7 @@
         <div class="auth-sub">4자리 PIN을 입력해주세요</div>
         ${pinDots()}<div class="pin-grid" id="pg"></div>
         <div class="auth-msg">${msg}</div>
-        <button class="pin-key wide" onclick="window.__relogin()">구글 재로그인</button>`);
+        <button class="pin-key wide" onclick="window.__relogin()">🔑 PIN 재설정</button>`);
       renderKeypad(onKey);
       window.__relogin = () => { clearSession(); startGoogleLogin(); };
     };
