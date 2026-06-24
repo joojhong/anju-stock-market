@@ -7,7 +7,7 @@
  *  - hide 있고 2분 이상 경과 → PIN
  *  - hide 있고 2분 미만 → PIN 스킵 (짧은 백그라운드 or 페이지 이동)
  *  - Google 토큰 만료 → PIN으로 해결
- 
+
  * iOS PWA 대응:
  *  - sessionStorage/localStorage 기반 nav 플래그 → 신뢰 불가, 제거
  *  - hide 기록: blur + freeze + visibilitychange + pagehide 모두 등록
@@ -107,9 +107,9 @@
           method: 'POST',
           headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' },
           body: JSON.stringify({ requests: [] })
-        }
+        
       );
-      if (writeR.status === 200) return 'editor';
+              if (writeR.status === 200 || writeR.status === 400) return 'editor';
 
       // 2단계: 읽기 시도로 viewer vs none 구분
       const readR = await fetch(
