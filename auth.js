@@ -18,17 +18,18 @@
   const CLIENT_ID    = '245414285873-fkhamod3vgam0viqpf4si2o7j3lqgrg3.apps.googleusercontent.com';
   const SHEET_ID     = '1BNEAoqxn4ZuTG8ZqRNI23Nnjh7rY5xQDpJUHyCLl1KA';
   const REDIRECT_URI = location.origin + '/anju-stock-market/';
-  const SCOPE        = 'https://www.googleapis.com/auth/spreadsheets.readonly openid email profile';
+  const SCOPE        = 'https://www.googleapis.com/auth/spreadsheets.readonly https://www.googleapis.com/auth/drive.metadata.readonly openid email profile';
   const BG_LOCK_MS   = 2 * 60 * 1000;
+  const AUTH_VER     = '2'; // scope 변경 시 기존 세션 강제 재로그인
 
   const KEY_TOKEN  = 'anju_token';
   const KEY_EXPIRY = 'anju_expiry';
   const KEY_ROLE   = 'anju_role';
   const KEY_PIN    = 'anju_pin';
   const KEY_HIDE       = 'anju_hide';
-  const KEY_HIDE_TOKEN = 'anju_hide_tok'; // hide 시 발급한 토큰 (localStorage)
-  const KEY_NAV_FLAG   = 'anju_nav';      // 앱 내 링크 클릭 → 페이지 이동 감지용
-  // 메모리 토큰: 앱이 살아있는 동안만 존재. 완전 종료 시 사라짐.
+  const KEY_HIDE_TOKEN = 'anju_hide_tok';
+  const KEY_NAV_FLAG   = 'anju_nav';
+  const KEY_VER        = 'anju_ver';
   let _memHideToken = null;
 
   async function sha256(text) {
@@ -43,7 +44,7 @@
 
   const saveHideTime  = () => {
     const tok = Math.random().toString(36).slice(2);
-    _memHideToken = tok; // 메모리에 보관
+    _memHideToken = tok;
     localStorage.setItem(KEY_HIDE_TOKEN, tok);
     localStorage.setItem(KEY_HIDE, String(Date.now()));
   };
@@ -54,8 +55,6 @@
   };
   const getHideTime   = () => parseInt(localStorage.getItem(KEY_HIDE)||'0', 10);
 
-  // hide 있고 2분 미만이고 메모리 토큰 일치 → 백그라운드 복귀 → PIN 스킵
-  // 앱 완전 종료 시: 메모리 사라짐 → _memHideToken=null → 토큰 불일치 → PIN 요구
   function isShortBg() {
     const t = getHideTime();
     if (t <= 0 || (Date.now() - t) >= BG_LOCK_MS) return false;
@@ -67,10 +66,16 @@
     localStorage.setItem(KEY_TOKEN,  token);
     localStorage.setItem(KEY_EXPIRY, String(Date.now() + expiresIn * 1000));
     localStorage.setItem(KEY_ROLE,   role);
+    localStorage.setItem(KEY_VER,    AUTH_VER);
   }
   function clearSession() {
     _memHideToken = null;
-    [KEY_TOKEN, KEY_EXPIRY, KEY_ROLE, KEY_PIN, KEY_HIDE, KEY_HIDE_TOKEN, KEY_NAV_FLAG].forEach(k => localStorage.removeItem(k));
+    [KEY_TOKEN, KEY_EXPIRY, KEY_ROLE, KEY_PIN, KEY_HIDE, KEY_HIDE_TOKEN, KEY_NAV_FLAG, KEY_VER].forEach(k => localStorage.removeItem(k));
+  }
+
+  // 버전 체크: scope가 바뀌었으면 기존 세션 무효화
+  function isSessionVersionValid() {
+    return localStorage.getItem(KEY_VER) === AUTH_VER;
   }
 
   function startGoogleLogin() {
@@ -95,19 +100,43 @@
 
   async function checkSheetsRole(token) {
     try {
+      // Drive API로 실제 공유 권한(role) 확인
       const r = await fetch(
-        `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}?fields=spreadsheetId`,
+        `https://www.googleapis.com/drive/v3/files/${SHEET_ID}?fields=permissions`,
         { headers: { Authorization: 'Bearer ' + token } }
       );
-      if (r.status === 200) return 'editor';
-      if (r.status === 403) {
-        const r2 = await fetch(
-          `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/사용자!A1:A1`,
-          { headers: { Authorization: 'Bearer ' + token } }
-        );
-        return r2.status === 200 ? 'viewer' : 'none';
-      }
+      if (r.status === 403 || r.status === 401) return 'none';
+      if (!r.ok) return 'none';
+
+      const data = await r.json();
+      const permissions = data.permissions || [];
+
+      // 자신의 permission 찾기 (emailAddress 또는 me)
+      // 자신의 이메일을 알기 위해 userinfo 조회
+      const uinfoR = await fetch(
+        'https://www.googleapis.com/oauth2/v1/userinfo',
+        { headers: { Authorization: 'Bearer ' + token } }
+      );
+      if (!uinfoR.ok) return 'none';
+      const uinfo = await uinfoR.json();
+      const myEmail = (uinfo.email || '').toLowerCase();
+
+      // permissions 중 내 이메일과 일치하는 항목 찾기
+      const mine = permissions.find(p =>
+        (p.emailAddress || '').toLowerCase() === myEmail ||
+        p.type === 'user' && (p.emailAddress || '').toLowerCase() === myEmail
+      );
+
+      if (!mine) return 'none';
+
+      // role 판정
+      // owner, writer → editor
+      // reader → viewer
+      // commenter, 그 외 → none
+      if (mine.role === 'owner' || mine.role === 'writer') return 'editor';
+      if (mine.role === 'reader') return 'viewer';
       return 'none';
+
     } catch { return 'none'; }
   }
 
@@ -250,37 +279,29 @@
       b.textContent='👀 조회 전용 모드 — 거래 입력 및 설정 변경이 불가해요';
       document.body.insertBefore(b,document.body.firstChild);
     }
-    // trading: 거래저장, 삭제확인, 삭제버튼
-    // setting: 수정, 삭제, 추가, 모달저장
-    // snapshot: 설정저장, 지금스냅샷저장
     ['.save-btn','.del-ok-btn','.btn-del-trade',
      '.btn-edit','.btn-delete','.btn-add','.btn-save-m','#btnSaveM',
-     '#btnSave','.btn-submit','btn-manual','#btnManual']
+     '#btnSave','.btn-submit','.btn-manual','#btnManual']
       .forEach(sel=>document.querySelectorAll(sel).forEach(btn=>{
         btn.disabled=true; btn.style.opacity='0.4'; btn.style.cursor='not-allowed';
       }));
   }
 
-  // 중복 등록 방지: 최초 1회만 등록
   let _listenersRegistered = false;
   function registerLifecycleListeners(role) {
     if (_listenersRegistered) return;
     _listenersRegistered = true;
 
-    // 백그라운드로 나갈 때 hide 시각 저장
     const doHide = () => saveHideTime();
     window.addEventListener('pagehide', doHide, {capture:true});
     window.addEventListener('freeze',   doHide, {capture:true});
 
-    // visibilitychange: 나갈 때 저장 + 복귀 시 PIN 체크
     document.addEventListener('visibilitychange', () => {
       if (document.hidden) {
         doHide();
       } else {
-        // 포그라운드 복귀 - PIN 잠금 여부 확인
-        if (!getPin()) return; // PIN 미설정 시 스킵
+        if (!getPin()) return;
         if (!isShortBg()) {
-          // 2분 이상 경과 또는 hide 기록 없음 → PIN 요구
           clearHideTime();
           showPinUnlockScreen(
             () => enterApp(role),
@@ -319,18 +340,14 @@
   function proceedToApp(role) {
     if (!getPin()) { showPinSetupScreen(()=>enterApp(role)); return; }
 
-    // hide 있고 2분 미만 → 짧은 백그라운드 복귀 or 페이지 이동 → PIN 스킵
-    // 1) 앱 내 링크 클릭 페이지 이동 → nav_flag → PIN 스킵 (1회용)
     if (localStorage.getItem(KEY_NAV_FLAG) === '1') {
       localStorage.removeItem(KEY_NAV_FLAG);
       enterApp(role);
       return;
     }
 
-    // 2) 짧은 백그라운드 복귀 (memToken 일치 + 2분 미만) → PIN 스킵
     if (isShortBg()) { enterApp(role); return; }
 
-    // 3) 그 외 모두 PIN 요구
     clearHideTime();
     showPinUnlockScreen(()=>enterApp(role), ()=>{clearSession();startGoogleLogin();});
   }
@@ -344,6 +361,14 @@
 
   async function init() {
     injectStyles();
+
+    // 버전 체크: 이전 버전 세션이면 강제 재로그인
+    if (hasSession() && !isSessionVersionValid()) {
+      clearSession();
+      showLoginScreen();
+      return;
+    }
+
     const td = parseHashToken();
     if (td) {
       history.replaceState(null,'',location.pathname+location.search);
