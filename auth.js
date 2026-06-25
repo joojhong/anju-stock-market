@@ -91,22 +91,24 @@
 
   async function checkSheetsRole(token) {
     try {
-      // 1단계: 시트 메타데이터 GET → 200이면 editor (편집 권한)
-      const r = await fetch(
-        `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}?fields=spreadsheetId`,
+      // 1. 구글 토큰으로 사용자 이메일 확인
+      const userR = await fetch(
+        'https://www.googleapis.com/oauth2/v3/userinfo',
         { headers: { Authorization: 'Bearer ' + token } }
       );
-      if (r.status === 200) return 'editor';
+      if (!userR.ok) return 'none';
+      const { email } = await userR.json();
+      if (!email) return 'none';
 
-      // 2단계: 403이면 viewer or none → values 읽기로 구분
-      if (r.status === 403) {
-        const r2 = await fetch(
-          `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/사용자!A1:A1`,
-          { headers: { Authorization: 'Bearer ' + token } }
-        );
-        return r2.status === 200 ? 'viewer' : 'none';
-      }
-      return 'none';
+      // 2. GAS에 이메일 전달해서 역할 확인 (GAS가 소유자 권한으로 getEditors/getViewers 조회)
+      const gasR = await fetch(
+        `https://script.google.com/macros/s/AKfycbz3VGPAtks3tzPOwdL2qq_-7CmL-DZNzVckv05adQvK-Q6C_k9_E_oPXraZi55P2lvrPw/exec?action=checkRole&email=${encodeURIComponent(email)}`,
+        { cache: 'no-store' }
+      );
+      if (!gasR.ok) return 'none';
+      const role = (await gasR.text()).trim();
+      return ['editor','viewer','none'].includes(role) ? role : 'none';
+
     } catch { return 'none'; }
   }
 
