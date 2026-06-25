@@ -18,10 +18,8 @@
   const CLIENT_ID    = '245414285873-fkhamod3vgam0viqpf4si2o7j3lqgrg3.apps.googleusercontent.com';
   const SHEET_ID     = '1BNEAoqxn4ZuTG8ZqRNI23Nnjh7rY5xQDpJUHyCLl1KA';
   const REDIRECT_URI = location.origin + '/anju-stock-market/';
-  const SCOPE        = 'https://www.googleapis.com/auth/spreadsheets.readonly https://www.googleapis.com/auth/drive.metadata.readonly openid email profile';
+  const SCOPE        = 'https://www.googleapis.com/auth/spreadsheets.readonly openid email profile';
   const BG_LOCK_MS   = 2 * 60 * 1000;
-  const AUTH_VER     = '2'; // scope 변경 시 기존 세션 강제 재로그인
-
   const KEY_TOKEN  = 'anju_token';
   const KEY_EXPIRY = 'anju_expiry';
   const KEY_ROLE   = 'anju_role';
@@ -29,7 +27,6 @@
   const KEY_HIDE       = 'anju_hide';
   const KEY_HIDE_TOKEN = 'anju_hide_tok';
   const KEY_NAV_FLAG   = 'anju_nav';
-  const KEY_VER        = 'anju_ver';
   let _memHideToken = null;
 
   async function sha256(text) {
@@ -66,16 +63,10 @@
     localStorage.setItem(KEY_TOKEN,  token);
     localStorage.setItem(KEY_EXPIRY, String(Date.now() + expiresIn * 1000));
     localStorage.setItem(KEY_ROLE,   role);
-    localStorage.setItem(KEY_VER,    AUTH_VER);
   }
   function clearSession() {
     _memHideToken = null;
-    [KEY_TOKEN, KEY_EXPIRY, KEY_ROLE, KEY_PIN, KEY_HIDE, KEY_HIDE_TOKEN, KEY_NAV_FLAG, KEY_VER].forEach(k => localStorage.removeItem(k));
-  }
-
-  // 버전 체크: scope가 바뀌었으면 기존 세션 무효화
-  function isSessionVersionValid() {
-    return localStorage.getItem(KEY_VER) === AUTH_VER;
+    [KEY_TOKEN, KEY_EXPIRY, KEY_ROLE, KEY_PIN, KEY_HIDE, KEY_HIDE_TOKEN, KEY_NAV_FLAG].forEach(k => localStorage.removeItem(k));
   }
 
   function startGoogleLogin() {
@@ -83,7 +74,7 @@
     sessionStorage.setItem('oauth_state', state);
     location.href = 'https://accounts.google.com/o/oauth2/v2/auth?' + new URLSearchParams({
       client_id: CLIENT_ID, redirect_uri: REDIRECT_URI,
-      response_type: 'token', scope: SCOPE, state, prompt: 'consent',
+      response_type: 'token', scope: SCOPE, state, prompt: 'select_account',
     });
   }
 
@@ -100,25 +91,22 @@
 
   async function checkSheetsRole(token) {
     try {
-      // 1단계: 빈 batchUpdate로 쓰기 권한 확인 (editor vs viewer/none)
-      const writeR = await fetch(
-        `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}:batchUpdate`,
-        {
-          method: 'POST',
-          headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' },
-          body: JSON.stringify({ requests: [] })
-        
-      );
-              if (writeR.status === 200 || writeR.status === 400) return 'editor';
-
-      // 2단계: 읽기 시도로 viewer vs none 구분
-      const readR = await fetch(
-        `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/A1`,
+      // 1단계: 시트 메타데이터 GET → 200이면 editor
+      const r = await fetch(
+        `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}?fields=spreadsheetId`,
         { headers: { Authorization: 'Bearer ' + token } }
       );
-      if (readR.status === 200) return 'viewer';
-      return 'none';
+      if (r.status === 200) return 'editor';
 
+      // 2단계: 403이면 viewer or none → values 읽기로 구분
+      if (r.status === 403) {
+        const r2 = await fetch(
+          `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/사용자!A1:A1`,
+          { headers: { Authorization: 'Bearer ' + token } }
+        );
+        return r2.status === 200 ? 'viewer' : 'none';
+      }
+      return 'none';
     } catch { return 'none'; }
   }
 
@@ -343,13 +331,6 @@
 
   async function init() {
     injectStyles();
-
-    // 버전 체크: 이전 버전 세션이면 강제 재로그인
-    if (hasSession() && !isSessionVersionValid()) {
-      clearSession();
-      showLoginScreen();
-      return;
-    }
 
     const td = parseHashToken();
     if (td) {
