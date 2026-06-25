@@ -11,11 +11,6 @@
 * iOS PWA 대응:
 * - sessionStorage/localStorage 기반 nav 플래그 → 신뢰 불가, 제거
 * - hide 기록: blur + freeze + visibilitychange + pagehide 모두 등록
-
-* 블러 규칙:
-* - 백그라운드 전환 즉시 → 블러 ON
-* - 2분 이내 복귀 → 블러 OFF, 바로 사용
-* - 2분 초과 복귀 → 블러 유지 + PIN 화면 → PIN 성공 시 블러 OFF
 */
 (function () {
 'use strict';
@@ -35,8 +30,8 @@ const KEY_NAV_FLAG = 'anju_nav';
 let _memHideToken = null;
 
 async function sha256(text) {
-  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text));
-  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2,'0')).join('');
+const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text));
+return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2,'0')).join('');
 }
 
 const getToken = () => localStorage.getItem(KEY_TOKEN);
@@ -45,108 +40,83 @@ const getPin = () => localStorage.getItem(KEY_PIN);
 const hasSession = () => !!getRole();
 
 const saveHideTime = () => {
-  const tok = Math.random().toString(36).slice(2);
-  _memHideToken = tok;
-  localStorage.setItem(KEY_HIDE_TOKEN, tok);
-  localStorage.setItem(KEY_HIDE, String(Date.now()));
+const tok = Math.random().toString(36).slice(2);
+_memHideToken = tok;
+localStorage.setItem(KEY_HIDE_TOKEN, tok);
+localStorage.setItem(KEY_HIDE, String(Date.now()));
 };
 const clearHideTime = () => {
-  _memHideToken = null;
-  localStorage.removeItem(KEY_HIDE);
-  localStorage.removeItem(KEY_HIDE_TOKEN);
+_memHideToken = null;
+localStorage.removeItem(KEY_HIDE);
+localStorage.removeItem(KEY_HIDE_TOKEN);
 };
 const getHideTime = () => parseInt(localStorage.getItem(KEY_HIDE)||'0', 10);
 
 function isShortBg() {
-  const t = getHideTime();
-  if (t <= 0 || (Date.now() - t) >= BG_LOCK_MS) return false;
-  const storedTok = localStorage.getItem(KEY_HIDE_TOKEN);
-  return !!_memHideToken && _memHideToken === storedTok;
+const t = getHideTime();
+if (t <= 0 || (Date.now() - t) >= BG_LOCK_MS) return false;
+const storedTok = localStorage.getItem(KEY_HIDE_TOKEN);
+return !!_memHideToken && _memHideToken === storedTok;
 }
 
 function saveSession(token, expiresIn, role) {
-  localStorage.setItem(KEY_TOKEN, token);
-  localStorage.setItem(KEY_EXPIRY, String(Date.now() + expiresIn * 1000));
-  localStorage.setItem(KEY_ROLE, role);
+localStorage.setItem(KEY_TOKEN, token);
+localStorage.setItem(KEY_EXPIRY, String(Date.now() + expiresIn * 1000));
+localStorage.setItem(KEY_ROLE, role);
 }
 function clearSession() {
-  _memHideToken = null;
-  [KEY_TOKEN, KEY_EXPIRY, KEY_ROLE, KEY_PIN, KEY_HIDE, KEY_HIDE_TOKEN, KEY_NAV_FLAG].forEach(k => localStorage.removeItem(k));
+_memHideToken = null;
+[KEY_TOKEN, KEY_EXPIRY, KEY_ROLE, KEY_PIN, KEY_HIDE, KEY_HIDE_TOKEN, KEY_NAV_FLAG].forEach(k => localStorage.removeItem(k));
 }
 
 function startGoogleLogin() {
-  const state = Math.random().toString(36).slice(2);
-  sessionStorage.setItem('oauth_state', state);
-  location.href = 'https://accounts.google.com/o/oauth2/v2/auth?' + new URLSearchParams({
-    client_id: CLIENT_ID, redirect_uri: REDIRECT_URI,
-    response_type: 'token', scope: SCOPE, state, prompt: 'select_account',
-  });
+const state = Math.random().toString(36).slice(2);
+sessionStorage.setItem('oauth_state', state);
+location.href = 'https://accounts.google.com/o/oauth2/v2/auth?' + new URLSearchParams({
+client_id: CLIENT_ID, redirect_uri: REDIRECT_URI,
+response_type: 'token', scope: SCOPE, state, prompt: 'select_account',
+});
 }
 
 function parseHashToken() {
-  const hash = location.hash.slice(1);
-  if (!hash) return null;
-  const p = Object.fromEntries(new URLSearchParams(hash));
-  if (!p.access_token) return null;
-  const saved = sessionStorage.getItem('oauth_state');
-  if (p.state && saved && p.state !== saved) return null;
-  sessionStorage.removeItem('oauth_state');
-  return { token: p.access_token, expiresIn: parseInt(p.expires_in || '3600', 10) };
+const hash = location.hash.slice(1);
+if (!hash) return null;
+const p = Object.fromEntries(new URLSearchParams(hash));
+if (!p.access_token) return null;
+const saved = sessionStorage.getItem('oauth_state');
+if (p.state && saved && p.state !== saved) return null;
+sessionStorage.removeItem('oauth_state');
+return { token: p.access_token, expiresIn: parseInt(p.expires_in || '3600', 10) };
 }
 
 async function checkSheetsRole(token) {
-  try {
-    // 1. 구글 토큰으로 사용자 이메일 확인
-    const userR = await fetch(
-      'https://www.googleapis.com/oauth2/v3/userinfo',
-      { headers: { Authorization: 'Bearer ' + token } }
-    );
-    if (!userR.ok) return 'none';
-    const { email } = await userR.json();
-    if (!email) return 'none';
+try {
+// 1. 구글 토큰으로 사용자 이메일 확인
+const userR = await fetch(
+'https://www.googleapis.com/oauth2/v3/userinfo',
+{ headers: { Authorization: 'Bearer ' + token } }
+);
+if (!userR.ok) return 'none';
+const { email } = await userR.json();
+if (!email) return 'none';
 
-    // 2. GAS에 이메일 전달해서 역할 확인 (GAS가 소유자 권한으로 getEditors/getViewers 조회)
-    const gasR = await fetch(
-      `https://script.google.com/macros/s/AKfycbz3VGPAtks3tzPOwdL2qq_-7CmL-DZNzVckv05adQvK-Q6C_k9_E_oPXraZi55P2lvrPw/exec?action=checkRole&email=${encodeURIComponent(email)}`,
-      { cache: 'no-store' }
-    );
-    if (!gasR.ok) return 'none';
-    const role = (await gasR.text()).trim();
-    return ['editor','viewer','none'].includes(role) ? role : 'none';
+// 2. GAS에 이메일 전달해서 역할 확인 (GAS가 소유자 권한으로 getEditors/getViewers 조회)
+const gasR = await fetch(
+`https://script.google.com/macros/s/AKfycbz3VGPAtks3tzPOwdL2qq_-7CmL-DZNzVckv05adQvK-Q6C_k9_E_oPXraZi55P2lvrPw/exec?action=checkRole&email=${encodeURIComponent(email)}`,
+{ cache: 'no-store' }
+);
+if (!gasR.ok) return 'none';
+const role = (await gasR.text()).trim();
+return ['editor','viewer','none'].includes(role) ? role : 'none';
 
-  } catch { return 'none'; }
+} catch { return 'none'; }
 }
-
-// ── 블러 오버레이 ──────────────────────────────────────────
-function showBlur() {
-  let el = document.getElementById('anju-blur');
-  if (!el) {
-    el = document.createElement('div');
-    el.id = 'anju-blur';
-    el.style.cssText = [
-      'position:fixed', 'inset:0', 'z-index:9998',
-      'backdrop-filter:blur(12px)', '-webkit-backdrop-filter:blur(12px)',
-      'background:rgba(240,242,245,0.4)',
-      'pointer-events:none',
-      'transition:opacity 0.2s',
-    ].join(';');
-    document.body.appendChild(el);
-  }
-  el.style.opacity = '1';
-  el.style.display = 'block';
-}
-
-function hideBlur() {
-  const el = document.getElementById('anju-blur');
-  if (el) el.style.display = 'none';
-}
-// ──────────────────────────────────────────────────────────
 
 function injectStyles() {
-  if (document.getElementById('auth-styles')) return;
-  const s = document.createElement('style');
-  s.id = 'auth-styles';
-  s.textContent = `
+if (document.getElementById('auth-styles')) return;
+const s = document.createElement('style');
+s.id = 'auth-styles';
+s.textContent = `
 #auth-overlay{position:fixed;inset:0;z-index:9999;background:#f0f2f5;
 display:flex;align-items:center;justify-content:center;font-family:-apple-system,sans-serif}
 #auth-overlay .auth-card{background:white;border-radius:20px;padding:36px 28px;
@@ -178,229 +148,220 @@ padding:6px;border-bottom:1px solid #ffc107}
 body.viewer-mode .header{top:30px}
 body.viewer-mode header.header{top:30px}
 `;
-  document.head.appendChild(s);
+document.head.appendChild(s);
 }
 
 function showOverlay(html) {
-  injectStyles();
-  let el = document.getElementById('auth-overlay');
-  if (!el) { el = document.createElement('div'); el.id = 'auth-overlay'; document.body.appendChild(el); }
-  el.innerHTML = `<div class="auth-card">${html}</div>`;
-  el.style.display = 'flex';
+injectStyles();
+let el = document.getElementById('auth-overlay');
+if (!el) { el = document.createElement('div'); el.id = 'auth-overlay'; document.body.appendChild(el); }
+el.innerHTML = `<div class="auth-card">${html}</div>`;
+el.style.display = 'flex';
 }
 const hideOverlay = () => { const el = document.getElementById('auth-overlay'); if (el) el.remove(); };
 
 const pinDots = () => '<div class="pin-dots">' +
-  [0,1,2,3].map(i=>`<div class="pin-dot" id="d${i}"></div>`).join('') + '</div>';
+[0,1,2,3].map(i=>`<div class="pin-dot" id="d${i}"></div>`).join('') + '</div>';
 const updateDots = n => [0,1,2,3].forEach(i=>{
-  const d=document.getElementById('d'+i); if(d) d.classList.toggle('filled',i<n);
+const d=document.getElementById('d'+i); if(d) d.classList.toggle('filled',i<n);
 });
 function renderKeypad(onKey) {
-  const g = document.getElementById('pg'); if (!g) return;
-  g.innerHTML = ['1','2','3','4','5','6','7','8','9','','0','del'].map(k =>
-    k==='' ? '<div></div>' :
-    k==='del' ? `<button class="pin-key del" onclick="window.__ak('del')">⌫</button>` :
-    `<button class="pin-key" onclick="window.__ak('${k}')">${k}</button>`
-  ).join('');
-  window.__ak = onKey;
+const g = document.getElementById('pg'); if (!g) return;
+g.innerHTML = ['1','2','3','4','5','6','7','8','9','','0','del'].map(k =>
+k==='' ? '<div></div>' :
+k==='del' ? `<button class="pin-key del" onclick="window.__ak('del')">⌫</button>` :
+`<button class="pin-key" onclick="window.__ak('${k}')">${k}</button>`
+).join('');
+window.__ak = onKey;
 }
 
 function showLoginScreen() {
-  showOverlay(`<div class="auth-logo">📊</div>
+showOverlay(`<div class="auth-logo">📊</div>
 <div class="auth-title">안주주식마켓</div>
 <div class="auth-sub">구글 계정으로 로그인하면<br>권한이 자동으로 확인돼요</div>
 <button class="btn-google" onclick="window.__auth_gl()"><span>🔑</span> Google 로그인</button>
 <div class="auth-msg"></div>`);
-  window.__auth_gl = startGoogleLogin;
+window.__auth_gl = startGoogleLogin;
 }
 function showLoadingScreen(msg) {
-  showOverlay(`<div class="auth-logo">📊</div>
+showOverlay(`<div class="auth-logo">📊</div>
 <div class="auth-title">안주주식마켓</div>
 <div class="auth-spinner"></div>
 <div class="auth-sub">${msg||'확인 중...'}</div>`);
 }
 function showNoAccessScreen() {
-  showOverlay(`<div class="auth-logo">🚫</div>
+showOverlay(`<div class="auth-logo">🚫</div>
 <div class="auth-title">접근 권한 없음</div>
 <div class="auth-sub">이 구글 계정은 안주주식마켓에<br>접근 권한이 없어요.</div>
 <button class="btn-google" onclick="window.__auth_retry()">다른 계정으로 로그인</button>`);
-  window.__auth_retry = () => { clearSession(); startGoogleLogin(); };
+window.__auth_retry = () => { clearSession(); startGoogleLogin(); };
 }
 
 function showPinSetupScreen(onDone) {
-  let step='first', first='', cur='';
-  const render = (msg='') => {
-    showOverlay(`<div class="auth-logo">🔐</div>
+let step='first', first='', cur='';
+const render = (msg='') => {
+showOverlay(`<div class="auth-logo">🔐</div>
 <div class="auth-title">${step==='first'?'PIN 설정':'PIN 확인'}</div>
 <div class="auth-sub">${step==='first'?'4자리 PIN을 설정해요':'같은 PIN을 다시 입력해주세요'}</div>
 ${pinDots()}<div class="pin-grid" id="pg"></div>
 <div class="auth-msg">${msg}</div>
 <button class="pin-key wide" onclick="window.__skip()">나중에 설정할게요</button>`);
-    renderKeypad(onKey);
-  };
-  const onKey = v => {
-    if (v==='del') cur=cur.slice(0,-1); else if (cur.length<4) cur+=v;
-    updateDots(cur.length);
-    if (cur.length===4) setTimeout(submit,100);
-  };
-  const submit = async () => {
-    if (step==='first') { first=cur; cur=''; step='confirm'; render(); }
-    else if (cur===first) { localStorage.setItem(KEY_PIN, await sha256(cur)); onDone(); }
-    else { first=''; cur=''; step='first'; render('PIN이 달라요. 다시 설정해주세요.'); }
-  };
-  window.__skip = onDone;
-  render();
+renderKeypad(onKey);
+};
+const onKey = v => {
+if (v==='del') cur=cur.slice(0,-1); else if (cur.length<4) cur+=v;
+updateDots(cur.length);
+if (cur.length===4) setTimeout(submit,100);
+};
+const submit = async () => {
+if (step==='first') { first=cur; cur=''; step='confirm'; render(); }
+else if (cur===first) { localStorage.setItem(KEY_PIN, await sha256(cur)); onDone(); }
+else { first=''; cur=''; step='first'; render('PIN이 달라요. 다시 설정해주세요.'); }
+};
+window.__skip = onDone;
+render();
 }
 
 function showPinUnlockScreen(onSuccess, onFail) {
-  let cur='', tries=0;
-  const render = (msg='') => {
-    showOverlay(`<div class="auth-logo">🔒</div>
+let cur='', tries=0;
+const render = (msg='') => {
+showOverlay(`<div class="auth-logo">🔒</div>
 <div class="auth-title">PIN 입력</div>
 <div class="auth-sub">4자리 PIN을 입력해주세요</div>
 ${pinDots()}<div class="pin-grid" id="pg"></div>
 <div class="auth-msg">${msg}</div>
 <button class="pin-key wide" onclick="window.__relogin()">🔑 PIN 재설정</button>
 <div style="font-size:11px;color:#bbb;margin-top:6px;">권한이 변경됐다면 눌러주세요</div>`);
-    renderKeypad(onKey);
-    window.__relogin = () => { clearSession(); startGoogleLogin(); };
-  };
-  const onKey = v => {
-    if (v==='del') cur=cur.slice(0,-1); else if (cur.length<4) cur+=v;
-    updateDots(cur.length);
-    if (cur.length===4) setTimeout(tryUnlock,100);
-  };
-  const tryUnlock = async () => {
-    if (await sha256(cur)===getPin()) { onSuccess(); }
-    else { tries++; cur=''; tries>=5 ? onFail() : render(`틀렸어요. ${5-tries}번 더 시도할 수 있어요.`); }
-  };
-  render();
+renderKeypad(onKey);
+window.__relogin = () => { clearSession(); startGoogleLogin(); };
+};
+const onKey = v => {
+if (v==='del') cur=cur.slice(0,-1); else if (cur.length<4) cur+=v;
+updateDots(cur.length);
+if (cur.length===4) setTimeout(tryUnlock,100);
+};
+const tryUnlock = async () => {
+if (await sha256(cur)===getPin()) { onSuccess(); }
+else { tries++; cur=''; tries>=5 ? onFail() : render(`틀렸어요. ${5-tries}번 더 시도할 수 있어요.`); }
+};
+render();
 }
 
 function applyViewerRestrictions() {
-  if (!document.getElementById('viewer-banner')) {
-    const b=document.createElement('div'); b.id='viewer-banner';
-    b.textContent='👀 조회 전용 모드 — 거래 입력 및 설정 변경이 불가해요';
-    document.body.insertBefore(b,document.body.firstChild);
-    document.body.style.paddingTop='30px';
-    document.body.classList.add('viewer-mode');
-  }
-  ['.save-btn','.del-ok-btn','.btn-del-trade',
-   '.btn-edit','.btn-delete','.btn-add','.btn-save-m','#btnSaveM',
-   '#btnSave','.btn-submit','.btn-manual','#btnManual']
-  .forEach(sel=>document.querySelectorAll(sel).forEach(btn=>{
-    btn.disabled=true; btn.style.opacity='0.4'; btn.style.cursor='not-allowed';
-  }));
+if (!document.getElementById('viewer-banner')) {
+const b=document.createElement('div'); b.id='viewer-banner';
+b.textContent='👀 조회 전용 모드 — 거래 입력 및 설정 변경이 불가해요';
+document.body.insertBefore(b,document.body.firstChild);
+document.body.style.paddingTop='30px';
+document.body.classList.add('viewer-mode');
+}
+['.save-btn','.del-ok-btn','.btn-del-trade',
+'.btn-edit','.btn-delete','.btn-add','.btn-save-m','#btnSaveM',
+'#btnSave','.btn-submit','.btn-manual','#btnManual']
+.forEach(sel=>document.querySelectorAll(sel).forEach(btn=>{
+btn.disabled=true; btn.style.opacity='0.4'; btn.style.cursor='not-allowed';
+}));
 }
 
 let _listenersRegistered = false;
 function registerLifecycleListeners(role) {
-  if (_listenersRegistered) return;
-  _listenersRegistered = true;
+if (_listenersRegistered) return;
+_listenersRegistered = true;
 
-  const doHide = () => {
-    saveHideTime();
-    showBlur();
-  };
-  window.addEventListener('pagehide', doHide, {capture:true});
-  window.addEventListener('freeze', doHide, {capture:true});
+const doHide = () => saveHideTime();
+window.addEventListener('pagehide', doHide, {capture:true});
+window.addEventListener('freeze', doHide, {capture:true});
 
-  document.addEventListener('visibilitychange', () => {
-    if (document.hidden) {
-      doHide();
-    } else {
-      if (!getPin()) { hideBlur(); return; }
-      if (isShortBg()) {
-        // 2분 이내 복귀 → 블러만 해제, PIN 없이 바로 사용
-        clearHideTime();
-        hideBlur();
-      } else {
-        // 2분 초과 복귀 → 블러 유지 + PIN 화면
-        clearHideTime();
-        showPinUnlockScreen(
-          () => { hideBlur(); enterApp(role); },
-          () => { clearSession(); startGoogleLogin(); }
-        );
-      }
-    }
-  }, {capture:true});
+document.addEventListener('visibilitychange', () => {
+if (document.hidden) {
+doHide();
+} else {
+if (!getPin()) return;
+if (!isShortBg()) {
+clearHideTime();
+showPinUnlockScreen(
+() => enterApp(role),
+() => { clearSession(); startGoogleLogin(); }
+);
+}
+}
+}, {capture:true});
 }
 
 function registerNavListeners() {
-  document.addEventListener('click', (e) => {
-    const a = e.target.closest('a[href]');
-    if (!a) return;
-    const href = a.getAttribute('href');
-    if (href && !href.startsWith('http') && !href.startsWith('#') && href.includes('.html')) {
-      localStorage.setItem(KEY_NAV_FLAG, '1');
-    }
-  }, {capture: true});
+document.addEventListener('click', (e) => {
+const a = e.target.closest('a[href]');
+if (!a) return;
+const href = a.getAttribute('href');
+if (href && !href.startsWith('http') && !href.startsWith('#') && href.includes('.html')) {
+localStorage.setItem(KEY_NAV_FLAG, '1');
+}
+}, {capture: true});
 }
 
 function enterApp(role) {
-  clearHideTime();
-  hideOverlay();
-  hideBlur();
-  registerNavListeners();
-  if (role==='viewer') {
-    const apply=()=>{
-      applyViewerRestrictions();
-      new MutationObserver(applyViewerRestrictions).observe(document.body,{childList:true,subtree:true});
-    };
-    document.readyState==='loading'?document.addEventListener('DOMContentLoaded',apply):apply();
-  }
-  registerLifecycleListeners(role);
+clearHideTime();
+hideOverlay();
+registerNavListeners();
+if (role==='viewer') {
+const apply=()=>{
+applyViewerRestrictions();
+new MutationObserver(applyViewerRestrictions).observe(document.body,{childList:true,subtree:true});
+};
+document.readyState==='loading'?document.addEventListener('DOMContentLoaded',apply):apply();
+}
+registerLifecycleListeners(role);
 }
 
 function proceedToApp(role) {
-  if (!getPin()) { showPinSetupScreen(()=>enterApp(role)); return; }
+if (!getPin()) { showPinSetupScreen(()=>enterApp(role)); return; }
 
-  if (localStorage.getItem(KEY_NAV_FLAG) === '1') {
-    localStorage.removeItem(KEY_NAV_FLAG);
-    enterApp(role);
-    return;
-  }
+if (localStorage.getItem(KEY_NAV_FLAG) === '1') {
+localStorage.removeItem(KEY_NAV_FLAG);
+enterApp(role);
+return;
+}
 
-  if (isShortBg()) { enterApp(role); return; }
+if (isShortBg()) { enterApp(role); return; }
 
-  clearHideTime();
-  showPinUnlockScreen(()=>enterApp(role), ()=>{clearSession();startGoogleLogin();});
+clearHideTime();
+showPinUnlockScreen(()=>enterApp(role), ()=>{clearSession();startGoogleLogin();});
 }
 
 function warmupGAS() {
-  try {
-    const gasUrl = window.GAS_URL;
-    if (gasUrl) fetch(gasUrl+'?action=ping',{method:'GET',cache:'no-store'}).catch(()=>{});
-  } catch(e) {}
+try {
+const gasUrl = window.GAS_URL;
+if (gasUrl) fetch(gasUrl+'?action=ping',{method:'GET',cache:'no-store'}).catch(()=>{});
+} catch(e) {}
 }
 
 async function init() {
-  injectStyles();
+injectStyles();
 
-  const td = parseHashToken();
-  if (td) {
-    history.replaceState(null,'',location.pathname+location.search);
-    showLoadingScreen('권한을 확인하는 중...');
-    const role = await checkSheetsRole(td.token);
-    if (role==='none') { showNoAccessScreen(); return; }
-    saveSession(td.token, td.expiresIn, role);
-    warmupGAS();
-    proceedToApp(role);
-    return;
-  }
-  if (hasSession()) { warmupGAS(); proceedToApp(getRole()); return; }
-  clearSession();
-  showLoginScreen();
+const td = parseHashToken();
+if (td) {
+history.replaceState(null,'',location.pathname+location.search);
+showLoadingScreen('권한을 확인하는 중...');
+const role = await checkSheetsRole(td.token);
+if (role==='none') { showNoAccessScreen(); return; }
+saveSession(td.token, td.expiresIn, role);
+warmupGAS();
+proceedToApp(role);
+return;
+}
+if (hasSession()) { warmupGAS(); proceedToApp(getRole()); return; }
+clearSession();
+showLoginScreen();
 }
 
 document.readyState==='loading'
-  ? document.addEventListener('DOMContentLoaded', init)
-  : init();
+? document.addEventListener('DOMContentLoaded', init)
+: init();
 
 window.anjuAuth = {
-  getRole, getToken,
-  isEditor: ()=>getRole()==='editor',
-  isViewer: ()=>getRole()==='viewer',
-  logout: ()=>{clearSession();startGoogleLogin();},
+getRole, getToken,
+isEditor: ()=>getRole()==='editor',
+isViewer: ()=>getRole()==='viewer',
+logout: ()=>{clearSession();startGoogleLogin();},
 };
 })();
