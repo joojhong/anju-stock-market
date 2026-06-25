@@ -91,22 +91,25 @@
 
   async function checkSheetsRole(token) {
     try {
-      // 1단계: 시트 메타데이터 GET → 200이면 editor
-      const r = await fetch(
-        `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}?fields=spreadsheetId`,
+      // 1단계: values append로 쓰기 권한 확인 (editor vs viewer/none)
+      // 빈 values 배열로 POST → editor면 200, viewer/none이면 403
+      const writeR = await fetch(
+        `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/사용자!A1:append?valueInputOption=RAW`,
+        {
+          method: 'POST',
+          headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ values: [] })
+        }
+      );
+      if (writeR.status === 200) return 'editor';
+
+      // 2단계: 읽기 시도로 viewer vs none 구분
+      const readR = await fetch(
+        `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/사용자!A1:A1`,
         { headers: { Authorization: 'Bearer ' + token } }
       );
-      if (r.status === 200) return 'editor';
+      return readR.status === 200 ? 'viewer' : 'none';
 
-      // 2단계: 403이면 viewer or none → values 읽기로 구분
-      if (r.status === 403) {
-        const r2 = await fetch(
-          `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/사용자!A1:A1`,
-          { headers: { Authorization: 'Bearer ' + token } }
-        );
-        return r2.status === 200 ? 'viewer' : 'none';
-      }
-      return 'none';
     } catch { return 'none'; }
   }
 
