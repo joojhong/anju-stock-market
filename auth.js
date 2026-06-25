@@ -143,6 +143,8 @@
       #viewer-banner{position:fixed;top:0;left:0;right:0;z-index:500;background:#fff3cd;
         color:#856404;font-size:12px;font-weight:600;text-align:center;
         padding:6px;border-bottom:1px solid #ffc107}
+      body.viewer-mode .header{top:30px}
+      body.viewer-mode header.header{top:30px}
     `;
     document.head.appendChild(s);
   }
@@ -247,7 +249,9 @@
     if (!document.getElementById('viewer-banner')) {
       const b=document.createElement('div'); b.id='viewer-banner';
       b.textContent='👀 조회 전용 모드 — 거래 입력 및 설정 변경이 불가해요';
-      document.body.insertBefore(b,document.body.firstChild);          document.body.style.paddingTop=b.offsetHeight+'px';
+      document.body.insertBefore(b,document.body.firstChild);
+      document.body.style.paddingTop='30px';
+      document.body.classList.add('viewer-mode');
     }
     ['.save-btn','.del-ok-btn','.btn-del-trade',
      '.btn-edit','.btn-delete','.btn-add','.btn-save-m','#btnSaveM',
