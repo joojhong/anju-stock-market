@@ -18,7 +18,7 @@
   const CLIENT_ID    = '245414285873-fkhamod3vgam0viqpf4si2o7j3lqgrg3.apps.googleusercontent.com';
   const SHEET_ID     = '1BNEAoqxn4ZuTG8ZqRNI23Nnjh7rY5xQDpJUHyCLl1KA';
   const REDIRECT_URI = location.origin + '/anju-stock-market/';
-  const SCOPE        = 'https://www.googleapis.com/auth/spreadsheets.readonly https://www.googleapis.com/auth/drive.readonly openid email profile';
+  const SCOPE        = 'https://www.googleapis.com/auth/spreadsheets.readonly openid email profile';
   const BG_LOCK_MS   = 2 * 60 * 1000;
   const KEY_TOKEN  = 'anju_token';
   const KEY_EXPIRY = 'anju_expiry';
@@ -91,15 +91,20 @@
 
   async function checkSheetsRole(token) {
     try {
-      // Drive API capabilities.canEdit으로 정확히 editor/viewer/none 구분
-      // canEdit: true → editor, false → viewer, 403 → none
-      const driveR = await fetch(
-        `https://www.googleapis.com/drive/v3/files/${SHEET_ID}?fields=capabilities(canEdit)`,
+      // 1단계: 시트 메타데이터 GET → 200이면 editor (편집 권한)
+      const r = await fetch(
+        `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}?fields=spreadsheetId`,
         { headers: { Authorization: 'Bearer ' + token } }
       );
-      if (driveR.status === 200) {
-        const data = await driveR.json();
-        return data.capabilities?.canEdit ? 'editor' : 'viewer';
+      if (r.status === 200) return 'editor';
+
+      // 2단계: 403이면 viewer or none → values 읽기로 구분
+      if (r.status === 403) {
+        const r2 = await fetch(
+          `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/사용자!A1:A1`,
+          { headers: { Authorization: 'Bearer ' + token } }
+        );
+        return r2.status === 200 ? 'viewer' : 'none';
       }
       return 'none';
     } catch { return 'none'; }
