@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">     <meta name="apple-mobile-web-app-capable" content="yes">     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">     <meta name="mobile-web-app-capable" content="yes">     <meta name="theme-color" content="#1a1f2e">     <link rel="manifest" href="manifest.json">
+<meta name="viewport" content="width=device-width, initial-scale=1.0"> <meta name="apple-mobile-web-app-capable" content="yes"> <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"> <meta name="mobile-web-app-capable" content="yes"> <meta name="theme-color" content="#1a1f2e"> <link rel="manifest" href="manifest.json">
 <title>평가액 히스토리 - 안주주식마켓</title>
 <script src="auth.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
@@ -98,46 +98,15 @@ var allData=[],myChart=null,labelsMap={사용자:{},금융기관:{},상품:{},�
 function num(n){return Math.round(n).toLocaleString('ko-KR');}
 function fmtDate(d){if(!d)return'';if(d.indexOf('/')!==-1){var p=d.split('/');return p[0]+'-'+p[1].padStart(2,'0')+'-'+p[2].padStart(2,'0');}return d;}
 (function(){var now=new Date(),y1=new Date(now);y1.setFullYear(now.getFullYear()-1);document.getElementById('dateTo').value=now.toISOString().slice(0,10);document.getElementById('dateFrom').value=y1.toISOString().slice(0,10);})();
-function loadLabels(cb){
-fetch(GAS+'?action=api&type=labels').then(function(r){return r.json();}).then(function(data){
-labelsMap=data;cb();
-}).catch(function(){cb();});
-}
+function loadLabels(cb){fetch(GAS+'?action=api&type=labels').then(function(r){return r.json();}).then(function(data){labelsMap=data;cb();}).catch(function(){cb();});}
 function loadSnapshot(){
 document.getElementById('chartArea').innerHTML='<div class="loading">⏳ 데이터 불러오는 중...</div>';
 document.getElementById('summaryArea').innerHTML='';
 fetch(GAS+'?action=api&type=snapshot').then(function(r){return r.json();}).then(function(data){allData=data;populateFilters(data);applyFilter();}).catch(function(e){document.getElementById('chartArea').innerHTML='<div class="error">❌ 로드 실패: '+e.message+'</div>';});
 }
-function populateFilters(data){
-var users=[],insts=[],prods=[],stocks=[];
-data.forEach(function(r){
-if(r.사용자ID&&users.indexOf(r.사용자ID)===-1)users.push(r.사용자ID);
-if(r.금융기관ID&&insts.indexOf(r.금융기관ID)===-1)insts.push(r.금융기관ID);
-if(r.상품ID&&prods.indexOf(r.상품ID)===-1)prods.push(r.상품ID);
-if(r.종목코드&&stocks.indexOf(r.종목코드)===-1)stocks.push(r.종목코드);
-});
-fillSel('fUser',users,'사용자');
-fillSel('fInstitution',insts,'금융기관');
-fillSel('fProduct',prods,'상품');
-fillSel('fStock',stocks,'종목');
-}
-function fillSel(id,arr,type){
-var sel=document.getElementById(id);
-sel.innerHTML='<option value="">전체</option>';
-arr.sort().forEach(function(v){
-var o=document.createElement('option');
-o.value=v;
-o.textContent=(labelsMap[type]&&labelsMap[type][v])?labelsMap[type][v]:v;
-sel.appendChild(o);
-});
-}
-function applyFilter(){
-var from=document.getElementById('dateFrom').value,to=document.getElementById('dateTo').value;
-var user=document.getElementById('fUser').value,inst=document.getElementById('fInstitution').value;
-var prod=document.getElementById('fProduct').value,stock=document.getElementById('fStock').value;
-var filtered=allData.filter(function(r){var d=fmtDate(r.날짜);if(from&&d<from)return false;if(to&&d>to)return false;if(user&&r.사용자ID!==user)return false;if(inst&&r.금융기관ID!==inst)return false;if(prod&&r.상품ID!==prod)return false;if(stock&&r.종목코드!==stock)return false;return true;});
-renderChart(filtered);
-}
+function populateFilters(data){var users=[],insts=[],prods=[],stocks=[];data.forEach(function(r){if(r.사용자ID&&users.indexOf(r.사용자ID)===-1)users.push(r.사용자ID);if(r.금융기관ID&&insts.indexOf(r.금융기관ID)===-1)insts.push(r.금융기관ID);if(r.상품ID&&prods.indexOf(r.상품ID)===-1)prods.push(r.상품ID);if(r.종목코드&&stocks.indexOf(r.종목코드)===-1)stocks.push(r.종목코드);});fillSel('fUser',users,'사용자');fillSel('fInstitution',insts,'금융기관');fillSel('fProduct',prods,'상품');fillSel('fStock',stocks,'종목');}
+function fillSel(id,arr,type){var sel=document.getElementById(id);sel.innerHTML='<option value="">전체</option>';arr.sort().forEach(function(v){var o=document.createElement('option');o.value=v;o.textContent=(labelsMap[type]&&labelsMap[type][v])?labelsMap[type][v]:v;sel.appendChild(o);});}
+function applyFilter(){var from=document.getElementById('dateFrom').value,to=document.getElementById('dateTo').value;var user=document.getElementById('fUser').value,inst=document.getElementById('fInstitution').value;var prod=document.getElementById('fProduct').value,stock=document.getElementById('fStock').value;var filtered=allData.filter(function(r){var d=fmtDate(r.날짜);if(from&&d<from)return false;if(to&&d>to)return false;if(user&&r.사용자ID!==user)return false;if(inst&&r.금융기관ID!==inst)return false;if(prod&&r.상품ID!==prod)return false;if(stock&&r.종목코드!==stock)return false;return true;});renderChart(filtered);}
 function resetFilters(){var now=new Date(),y1=new Date(now);y1.setFullYear(now.getFullYear()-1);document.getElementById('dateTo').value=now.toISOString().slice(0,10);document.getElementById('dateFrom').value=y1.toISOString().slice(0,10);['fUser','fInstitution','fProduct','fStock'].forEach(function(id){document.getElementById(id).value='';});applyFilter();}
 function renderChart(data){
 if(!data||!data.length){document.getElementById('summaryArea').innerHTML='';document.getElementById('chartArea').innerHTML='<div class="error">조건에 맞는 데이터가 없습니다.</div>';return;}
@@ -152,7 +121,7 @@ var cHtml='<div class="chart-card"><div class="chart-top"><div><div class="chart
 document.getElementById('chartArea').innerHTML=cHtml;
 if(myChart){myChart.destroy();myChart=null;}
 var ctx=document.getElementById('myChart').getContext('2d');
-myChart=new Chart(ctx,{type:'line',data:{labels:dates,datasets:[{data:vals,borderColor:'#1a1f2e',backgroundColor:'rgba(26,31,46,0.06)',borderWidth:2,pointRadius:dates.length<=30?4:2,pointBackgroundColor:'#1a1f2e',fill:true,tension:0.3}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:function(c){return' ₩'+num(c.raw);}}}},scales:{x:{grid:{display:false},ticks:{maxTicksLimit:8,font:{size:11},callback:function(v,i,t){var d=dates[i];if(!d)return'';var p=d.split('-');return p[0].slice(2)+'/'+p[1]+'/'+p[2];}}},y:{grid:{color:'#f0f2f5'},ticks:{callback:function(v){var m=v/1000000;return'₩'+(Number.isInteger(m)?m:m.toFixed(1))+'백만';},font:{size:11}}}}}});
+myChart=new Chart(ctx,{type:'line',data:{labels:dates,datasets:[{data:vals,borderColor:'#1a1f2e',backgroundColor:'rgba(26,31,46,0.06)',borderWidth:2,pointRadius:dates.length<=30?4:2,pointBackgroundColor:'#1a1f2e',fill:true,tension:0.3}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:function(c){return' ₩'+num(c.raw);}}}},scales:{x:{grid:{display:false},ticks:{maxTicksLimit:6,autoSkip:true,autoSkipPadding:20,font:{size:11},callback:function(v,i){var d=dates[i];if(!d)return'';var p=d.split('-');return p[0].slice(2)+'/'+p[1]+'/'+p[2];}}},y:{grid:{color:'#f0f2f5'},ticks:{callback:function(v){var m=v/1000000;return'₩'+(Number.isInteger(m)?m:m.toFixed(1))+'백만';},font:{size:11}}}}}});
 }
 loadLabels(loadSnapshot);
 </script>
