@@ -328,12 +328,7 @@ clearHideTime();
 showPinUnlockScreen(()=>enterApp(role), ()=>{clearSession();startGoogleLogin();});
 }
 
-function warmupGAS() {
-try {
-const gasUrl = window.GAS_URL;
-if (gasUrl) fetch(gasUrl+'?action=ping',{method:'GET',cache:'no-store'}).catch(()=>{});
-} catch(e) {}
-}
+
 
 async function init() {
 injectStyles();
@@ -345,11 +340,10 @@ showLoadingScreen('권한을 확인하는 중...');
 const role = await checkSheetsRole(td.token);
 if (role==='none') { showNoAccessScreen(); return; }
 saveSession(td.token, td.expiresIn, role);
-warmupGAS();
 proceedToApp(role);
 return;
 }
-if (hasSession()) { warmupGAS(); proceedToApp(getRole()); return; }
+if (hasSession()) {  proceedToApp(getRole()); return; }
 clearSession();
 showLoginScreen();
 }
