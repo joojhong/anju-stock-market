@@ -67,13 +67,12 @@ function cls(v){return v>=0?'up':'down';}
 function loadData(){
 var filter=document.getElementById('userFilter').value;
 document.getElementById('content').innerHTML='<div class="loading">⏳ 불러오는 중...</div>';
-fetch(GAS_URL+'?action=api&type=data&filter='+encodeURIComponent(filter))
-.then(function(r){return r.json();}).then(render)
-.catch(function(e){document.getElementById('content').innerHTML='<div class="loading">❌ 오류: '+e.message+'</div>';});
+window.anjuFetch(GAS_URL+'?action=api&type=data&filter='+encodeURIComponent(filter))
+.then(render)
+.catch(function(e){document.getElementById('content').innerHTML='<div class="loading">⚠️ 서버 연결 실패<br><button onclick="loadData()" style="margin-top:10px;padding:8px 16px;border:none;border-radius:8px;background:#1a1f2e;color:white;font-size:13px;">다시 시도</button></div>';});
 }
 function initFilters(){
-fetch(GAS_URL+'?action=api&type=filters')
-.then(function(r){return r.json();})
+window.anjuFetch(GAS_URL+'?action=api&type=filters')
 .then(function(options){
 var sel=document.getElementById('userFilter');
 sel.innerHTML='';
@@ -104,8 +103,7 @@ initFilters();
 <script>
 async function loadMarketIndices() {
   try {
-    var res = await fetch(GAS_URL + '?action=api&type=indices');
-    var data = await res.json();
+    var data = await window.anjuFetch(GAS_URL + '?action=api&type=indices');
     var map = {SPX: 'idxSPX', NDX: 'idxNDX', SPMO: 'idxSPMO'};
     data.forEach(function(item) {
       var id = map[item.name];
