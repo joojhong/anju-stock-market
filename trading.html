@@ -189,9 +189,11 @@ function calcAmount() {
 }
   async function loadLabels() {
   try {
-    var labRes = await fetch(GAS + '?action=api&type=labels');
-    var accRes = await fetch(GAS + '?action=readSheet&sheet=계좌');
-    
+    var [labRes, accRes] = await Promise.all([
+      fetch(GAS + '?action=api&type=labels'),
+      fetch(GAS + '?action=readSheet&sheet=계좌')
+    ]);
+
     var lab = await labRes.json();
     var acc = await accRes.json();
     accountRows = (acc.data || []).slice(1);
