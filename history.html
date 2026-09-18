@@ -98,11 +98,11 @@ var allData=[],myChart=null,labelsMap={사용자:{},금융기관:{},상품:{},�
 function num(n){return Math.round(n).toLocaleString('ko-KR');}
 function fmtDate(d){if(!d)return'';if(d.indexOf('/')!==-1){var p=d.split('/');return p[0]+'-'+p[1].padStart(2,'0')+'-'+p[2].padStart(2,'0');}return d;}
 (function(){var now=new Date(),y1=new Date(now);y1.setFullYear(now.getFullYear()-1);document.getElementById('dateTo').value=now.toISOString().slice(0,10);document.getElementById('dateFrom').value=y1.toISOString().slice(0,10);})();
-function loadLabels(cb){fetch(GAS+'?action=api&type=labels').then(function(r){return r.json();}).then(function(data){labelsMap=data;cb();}).catch(function(){cb();});}
+function loadLabels(cb){window.anjuFetch(GAS+'?action=api&type=labels').then(function(data){labelsMap=data;cb();}).catch(function(){cb();});}
 function loadSnapshot(){
 document.getElementById('chartArea').innerHTML='<div class="loading">⏳ 데이터 불러오는 중...</div>';
 document.getElementById('summaryArea').innerHTML='';
-fetch(GAS+'?action=api&type=snapshot').then(function(r){return r.json();}).then(function(data){allData=data;populateFilters(data);applyFilter();}).catch(function(e){document.getElementById('chartArea').innerHTML='<div class="error">❌ 로드 실패: '+e.message+'</div>';});
+window.anjuFetch(GAS+'?action=api&type=snapshot').then(function(data){allData=data;populateFilters(data);applyFilter();}).catch(function(e){document.getElementById('chartArea').innerHTML='<div class="error">❌ 로드 실패: '+e.message+'</div>';});
 }
 function populateFilters(data){var users=[],insts=[],prods=[],stocks=[];data.forEach(function(r){if(r.사용자ID&&users.indexOf(r.사용자ID)===-1)users.push(r.사용자ID);if(r.금융기관ID&&insts.indexOf(r.금융기관ID)===-1)insts.push(r.금융기관ID);if(r.상품ID&&prods.indexOf(r.상품ID)===-1)prods.push(r.상품ID);if(r.종목코드&&stocks.indexOf(r.종목코드)===-1)stocks.push(r.종목코드);});fillSel('fUser',users,'사용자');fillSel('fInstitution',insts,'금융기관');fillSel('fProduct',prods,'상품');fillSel('fStock',stocks,'종목');}
 function fillSel(id,arr,type){var sel=document.getElementById(id);sel.innerHTML='<option value="">전체</option>';arr.sort().forEach(function(v){var o=document.createElement('option');o.value=v;o.textContent=(labelsMap[type]&&labelsMap[type][v])?labelsMap[type][v]:v;sel.appendChild(o);});}
