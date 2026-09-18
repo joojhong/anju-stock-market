@@ -278,36 +278,26 @@ async function loadLabels() {
   renderSetting(labelsMap);
 
   try {
-    const ctrl = new AbortController();
-    setTimeout(() => ctrl.abort(), 15000);
-    const res = await fetch(GAS + '?action=api&type=labels', {signal: ctrl.signal});
-    const text = await res.text();
-    if (text && text.length > 0 && !text.startsWith('<')) {
-      const fresh = JSON.parse(text);
-      if (fresh) {
-        labelsMap['사용자'] = fresh['사용자'] || labelsMap['사용자'];
-        labelsMap['금융기관'] = fresh['금융기관'] || labelsMap['금융기관'];
-        labelsMap['상품'] = fresh['상품'] || labelsMap['상품'];
-        if (fresh['종목']) labelsMap['종목'] = fresh['종목'];
-      }
+    const fresh = await window.anjuFetch(GAS + '?action=api&type=labels', {}, {timeoutMs: 15000});
+    if (fresh) {
+      labelsMap['사용자'] = fresh['사용자'] || labelsMap['사용자'];
+      labelsMap['금융기관'] = fresh['금융기관'] || labelsMap['금융기관'];
+      labelsMap['상품'] = fresh['상품'] || labelsMap['상품'];
+      if (fresh['종목']) labelsMap['종목'] = fresh['종목'];
     }
-    const acctRes = await fetch(GAS + '?action=readSheet&sheet=' + encodeURIComponent('계좌'));
-    const acctText = await acctRes.text();
-    if (acctText && acctText.length > 0 && !acctText.startsWith('<')) {
-      const acctJson = JSON.parse(acctText);
-      if (acctJson && acctJson.data && acctJson.data.length > 1) {
-        const acctMap = {};
-        for (let i = 1; i < acctJson.data.length; i++) {
-          const row = acctJson.data[i];
-          const id = row[0]; const user = row[1]; const bank = row[2]; const prod = row[3];
-          if (!id) continue;
-          const uName = (labelsMap['사용자'] || {})[user] || user;
-          const bName = (labelsMap['금융기관'] || {})[bank] || bank;
-          const pName = (labelsMap['상품'] || {})[prod] || prod;
-          acctMap[id] = {name: uName + ' ' + bName + ' ' + pName, user, bank, product: prod};
-        }
-        labelsMap['계좌'] = acctMap;
+    const acctJson = await window.anjuFetch(GAS + '?action=readSheet&sheet=' + encodeURIComponent('계좌'));
+    if (acctJson && acctJson.data && acctJson.data.length > 1) {
+      const acctMap = {};
+      for (let i = 1; i < acctJson.data.length; i++) {
+        const row = acctJson.data[i];
+        const id = row[0]; const user = row[1]; const bank = row[2]; const prod = row[3];
+        if (!id) continue;
+        const uName = (labelsMap['사용자'] || {})[user] || user;
+        const bName = (labelsMap['금융기관'] || {})[bank] || bank;
+        const pName = (labelsMap['상품'] || {})[prod] || prod;
+        acctMap[id] = {name: uName + ' ' + bName + ' ' + pName, user, bank, product: prod};
       }
+      labelsMap['계좌'] = acctMap;
     }
     renderSetting(labelsMap);
   } catch(e) { renderSetting(labelsMap); }
