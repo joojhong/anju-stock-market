@@ -178,21 +178,17 @@ function renderCurrentValues() {
 
 async function loadSettings() {
   try {
-    const res = await fetch(GAS + '?action=api&type=snapshot_config');
-    const text = await res.text();
-    if (text && !text.startsWith('<')) {
-      const data = JSON.parse(text);
-      if (data && !data.error && (data.day !== undefined || data.cycle !== undefined)) {
-        currentSettings = {
-          day: data.day || '1',
-          cycle: data.cycle || '월',
-          hour: data.hour !== undefined ? data.hour : 7,
-          sourceUrl: data.sourceUrl || DEFAULT_SNAP_SOURCE
-        };
-        localStorage.setItem('snapshotSettings', JSON.stringify(currentSettings));
-        renderCurrentValues();
-        return;
-      }
+    const data = await window.anjuFetch(GAS + '?action=api&type=snapshot_config');
+    if (data && !data.error && (data.day !== undefined || data.cycle !== undefined)) {
+      currentSettings = {
+        day: data.day || '1',
+        cycle: data.cycle || '월',
+        hour: data.hour !== undefined ? data.hour : 7,
+        sourceUrl: data.sourceUrl || DEFAULT_SNAP_SOURCE
+      };
+      localStorage.setItem('snapshotSettings', JSON.stringify(currentSettings));
+      renderCurrentValues();
+      return;
     }
   } catch(e) {
     // fall through to localStorage
