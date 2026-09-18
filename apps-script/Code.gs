@@ -321,7 +321,7 @@ if (e.parameter.action === 'checkRole') {
   if (action === 'readSheet') {
     var sheetName = e.parameter.sheet || '';
     // 명부류(계좌): 300초 TTL / 이력류(거래내역): 60초 TTL / 그 외: 캐시 미적용(기존 동작 유지)
-    var READSHEET_TTL = { '계좌': 300, '거래내역': 60 };
+    var READSHEET_TTL = { '계좌': 1800, '거래내역': 60 };
     var rsTtl = READSHEET_TTL[sheetName];
     var rsCacheKey = null;
     if (rsTtl) {
@@ -479,7 +479,7 @@ function getFilterOptions() {
     }
   }
 
-  _cachePut(캐시키, options, 300);
+  _cachePut(캐시키, options, 1800);
   return options;
 }
 
@@ -684,7 +684,7 @@ function getLabels() {
     if (종목시트[i][0]) 종목맵[종목시트[i][0]] = 종목시트[i][1];
   }
   var 결과 = { 사용자: 사용자맵, 금융기관: 금융기관맵, 상품: 상품맵, 종목: 종목맵 };
-  _cachePut(캐시키, 결과, 300);
+  _cachePut(캐시키, 결과, 1800);
   return 결과;
 }
 
