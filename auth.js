@@ -89,26 +89,53 @@ sessionStorage.removeItem('oauth_state');
 return { token: p.access_token, expiresIn: parseInt(p.expires_in || '3600', 10) };
 }
 
+async function fetchWithRetry(url, options, config) {
+config = config || {};
+var maxRetries = config.retries != null ? config.retries : 2;
+var timeoutMs = config.timeoutMs != null ? config.timeoutMs : 8000;
+var backoff = config.backoffMs || [500, 1500];
+var parseJson = config.parseJson !== false;
+var lastErr = null;
+for (var attempt = 0; attempt <= maxRetries; attempt++) {
+var controller = new AbortController();
+var timer = setTimeout(function () { controller.abort(); }, timeoutMs);
+try {
+var res = await fetch(url, Object.assign({}, options, { signal: controller.signal }));
+clearTimeout(timer);
+if (!res.ok) { lastErr = new Error('HTTP ' + res.status); }
+else if (!parseJson) { return res; }
+else {
+var text = await res.text();
+try { return JSON.parse(text); }
+catch (e) { lastErr = new Error('JSON 파싱 실패 (서버가 JSON이 아닌 응답을 반환함)'); }
+}
+} catch (err) {
+clearTimeout(timer);
+lastErr = (err && err.name === 'AbortError') ? new Error('요청 시간 초과') : err;
+}
+if (attempt < maxRetries) {
+await new Promise(function (r) { setTimeout(r, backoff[attempt] != null ? backoff[attempt] : backoff[backoff.length - 1]); });
+}
+}
+throw lastErr;
+}
+
 async function checkSheetsRole(token) {
 try {
-// 1. 구글 토큰으로 사용자 이메일 확인
-const userR = await fetch(
+const userR = await fetchWithRetry(
 'https://www.googleapis.com/oauth2/v3/userinfo',
-{ headers: { Authorization: 'Bearer ' + token } }
+{ headers: { Authorization: 'Bearer ' + token } },
+{ parseJson: false }
 );
-if (!userR.ok) return 'none';
 const { email } = await userR.json();
 if (!email) return 'none';
-
-// 2. GAS에 이메일 전달해서 역할 확인 (GAS가 소유자 권한으로 getEditors/getViewers 조회)
-const gasR = await fetch(
+const gasR = await fetchWithRetry(
 `https://script.google.com/macros/s/AKfycbz3VGPAtks3tzPOwdL2qq_-7CmL-DZNzVckv05adQvK-Q6C_k9_E_oPXraZi55P2lvrPw/exec?action=checkRole&email=${encodeURIComponent(email)}`,
-{ cache: 'no-store' }
+{ cache: 'no-store' },
+{ parseJson: false }
 );
-if (!gasR.ok) return 'none';
 const role = (await gasR.text()).trim();
 return ['editor','viewer','none'].includes(role) ? role : 'none';
-
 } catch { return 'none'; }
 }
 
@@ -358,4 +385,5 @@ isEditor: ()=>getRole()==='editor',
 isViewer: ()=>getRole()==='viewer',
 logout: ()=>{clearSession();startGoogleLogin();},
 };
+window.anjuFetch = fetchWithRetry;
 })();
