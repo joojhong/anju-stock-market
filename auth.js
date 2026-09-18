@@ -92,8 +92,8 @@ return { token: p.access_token, expiresIn: parseInt(p.expires_in || '3600', 10) 
 async function fetchWithRetry(url, options, config) {
 config = config || {};
 var maxRetries = config.retries != null ? config.retries : 2;
-var timeoutMs = config.timeoutMs != null ? config.timeoutMs : 8000;
-var backoff = config.backoffMs || [500, 1500];
+var timeoutMs = config.timeoutMs != null ? config.timeoutMs : 4000;
+var backoff = config.backoffMs || [300, 800];
 var parseJson = config.parseJson !== false;
 var lastErr = null;
 for (var attempt = 0; attempt <= maxRetries; attempt++) {
