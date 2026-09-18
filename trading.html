@@ -189,13 +189,11 @@ function calcAmount() {
 }
   async function loadLabels() {
   try {
-    var [labRes, accRes] = await Promise.all([
-      fetch(GAS + '?action=api&type=labels'),
-      fetch(GAS + '?action=readSheet&sheet=계좌')
+    var [lab, acc] = await Promise.all([
+      window.anjuFetch(GAS + '?action=api&type=labels'),
+      window.anjuFetch(GAS + '?action=readSheet&sheet=계좌')
     ]);
 
-    var lab = await labRes.json();
-    var acc = await accRes.json();
     accountRows = (acc.data || []).slice(1);
     labelsCache = lab;
     populateSelectFromObj('selUser', lab['사용자'] || {});
@@ -326,8 +324,7 @@ async function loadTradeList() {
   var el = document.getElementById('tradeListContent');
   el.innerHTML = '<div class="loading">&#x23F3; 거래 내역 로딩 중...</div>';
   try {
-    var res = await fetch(GAS + '?action=readSheet&sheet=거래내역');
-    var data = await res.json();
+    var data = await window.anjuFetch(GAS + '?action=readSheet&sheet=거래내역');
     var rows = (data.data || []);
     if (rows.length <= 1) {
       el.innerHTML = '<div class="empty"><div class="empty-icon">&#x1F4CB;</div>거래 내역이 없습니다.</div>';
