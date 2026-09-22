@@ -59,6 +59,13 @@ const storedTok = localStorage.getItem(KEY_HIDE_TOKEN);
 return !!_memHideToken && _memHideToken === storedTok;
 }
 
+function isReloadNav() {
+try {
+const entries = performance.getEntriesByType('navigation');
+return entries.length > 0 && entries[0].type === 'reload';
+} catch (e) { return false; }
+}
+
 function saveSession(token, expiresIn, role) {
 localStorage.setItem(KEY_TOKEN, token);
 localStorage.setItem(KEY_EXPIRY, String(Date.now() + expiresIn * 1000));
@@ -350,6 +357,11 @@ return;
 }
 
 if (isShortBg()) { enterApp(role); return; }
+
+if (isReloadNav()) {
+const t = getHideTime();
+if (t > 0 && (Date.now() - t) < BG_LOCK_MS) { clearHideTime(); enterApp(role); return; }
+}
 
 clearHideTime();
 showPinUnlockScreen(()=>enterApp(role), ()=>{clearSession();startGoogleLogin();});
