@@ -10,8 +10,10 @@
 *{margin:0;padding:0;box-sizing:border-box}
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f0f2f5;color:#333;padding-bottom:72px}
 .header {background: #ffffff;color: #1a1f2e;padding:16px 20px;display:flex;align-items:center;gap:10px;position:sticky;top:0;z-index:100}
-.header h1{font-size:18px;font-weight:700;flex:1}
+.header-title-wrap{display:flex;align-items:center;gap:8px;flex-wrap:wrap;flex:1;min-width:0}
+.header h1{font-size:18px;font-weight:700}
 .header a{color:#666;font-size:13px;text-decoration:none;padding:4px 8px;border-radius:6px;background:rgba(255,255,255,0.1)}
+.sync-badge{display:none;background:#fff3cd;color:#856404;font-size:10px;font-weight:600;padding:3px 8px;border-radius:12px;white-space:nowrap}
 .filter-section{background:white;padding:16px 20px 12px;border-bottom:1px solid #e8eaed}
 .filter-title{font-size:11px;font-weight:700;color:#80868b;text-transform:uppercase;letter-spacing:0.8px;margin-bottom:14px}
 .filter-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
@@ -47,7 +49,7 @@ nav a .ic{font-size:21px}
 <body>
 <header class="header">
 <span style="font-size:22px">📈</span>
-<h1>평가액 히스토리</h1>
+<div class="header-title-wrap"><h1>평가액 히스토리</h1><span id="syncBadge" class="sync-badge"></span></div>
 <a href="index.html">← 홈</a>
 </header>
 <div class="filter-section">
@@ -95,17 +97,55 @@ nav a .ic{font-size:21px}
 <script>
 var GAS='https://script.google.com/macros/s/AKfycbz3VGPAtks3tzPOwdL2qq_-7CmL-DZNzVckv05adQvK-Q6C_k9_E_oPXraZi55P2lvrPw/exec';
 var allData=[],myChart=null,labelsMap={사용자:{},금융기관:{},상품:{},종목:{}};
+var CACHE_LABELS='anju_cache_history_labels_v1';
+var CACHE_SNAPSHOT='anju_cache_snapshot_v1';
+var KEY_LAST_WRITE='anju_last_write_ts';
 function num(n){return Math.round(n).toLocaleString('ko-KR');}
 function fmtDate(d){if(!d)return'';if(d.indexOf('/')!==-1){var p=d.split('/');return p[0]+'-'+p[1].padStart(2,'0')+'-'+p[2].padStart(2,'0');}return d;}
 (function(){var now=new Date(),y1=new Date(now);y1.setFullYear(now.getFullYear()-1);document.getElementById('dateTo').value=now.toISOString().slice(0,10);document.getElementById('dateFrom').value=y1.toISOString().slice(0,10);})();
-function loadLabels(cb){window.anjuFetch(GAS+'?action=api&type=labels').then(function(data){labelsMap=data;cb();}).catch(function(){cb();});}
-function loadSnapshot(){
+function cacheGet(key){try{var raw=localStorage.getItem(key);return raw?JSON.parse(raw):null;}catch(e){return null;}}
+function cacheSet(key,data){try{localStorage.setItem(key,JSON.stringify({data:data,ts:Date.now()}));}catch(e){}}
+function isCacheStale(cached){if(!cached)return true;var lastWrite=parseInt(localStorage.getItem(KEY_LAST_WRITE)||'0',10);return cached.ts<lastWrite;}
+function showSyncBadge(text){var b=document.getElementById('syncBadge');if(!b)return;b.textContent=text;b.style.display='block';}
+function hideSyncBadge(){var b=document.getElementById('syncBadge');if(b)b.style.display='none';}
+function loadAll(){
+var cachedLabels=cacheGet(CACHE_LABELS);
+var cachedSnap=cacheGet(CACHE_SNAPSHOT);
+if(cachedLabels&&cachedLabels.data) labelsMap=cachedLabels.data;
+var useCache=cachedSnap&&cachedSnap.data&&!isCacheStale(cachedSnap);
+if(useCache){
+allData=cachedSnap.data;
+populateFilters(allData);
+applyFilter();
+}else{
 document.getElementById('chartArea').innerHTML='<div class="loading">⏳ 데이터 불러오는 중...</div>';
 document.getElementById('summaryArea').innerHTML='';
-window.anjuFetch(GAS+'?action=api&type=snapshot').then(function(data){allData=data;populateFilters(data);applyFilter();}).catch(function(e){document.getElementById('chartArea').innerHTML='<div class="error">❌ 로드 실패: '+e.message+'</div>';});
+}
+showSyncBadge('🔄 갱신 중');
+Promise.all([
+window.anjuFetch(GAS+'?action=api&type=labels'),
+window.anjuFetch(GAS+'?action=api&type=snapshot')
+]).then(function(results){
+var labels=results[0],snap=results[1];
+labelsMap=labels;
+cacheSet(CACHE_LABELS,labels);
+allData=snap;
+cacheSet(CACHE_SNAPSHOT,snap);
+populateFilters(allData);
+applyFilter();
+hideSyncBadge();
+}).catch(function(e){
+if(cachedSnap&&cachedSnap.data){
+var mins=Math.max(1,Math.round((Date.now()-cachedSnap.ts)/60000));
+showSyncBadge('⚠️ 최신 확인 실패 ('+mins+'분 전 기준)');
+}else{
+document.getElementById('chartArea').innerHTML='<div class="error">❌ 로드 실패: '+e.message+'</div>';
+hideSyncBadge();
+}
+});
 }
 function populateFilters(data){var users=[],insts=[],prods=[],stocks=[];data.forEach(function(r){if(r.사용자ID&&users.indexOf(r.사용자ID)===-1)users.push(r.사용자ID);if(r.금융기관ID&&insts.indexOf(r.금융기관ID)===-1)insts.push(r.금융기관ID);if(r.상품ID&&prods.indexOf(r.상품ID)===-1)prods.push(r.상품ID);if(r.종목코드&&stocks.indexOf(r.종목코드)===-1)stocks.push(r.종목코드);});fillSel('fUser',users,'사용자');fillSel('fInstitution',insts,'금융기관');fillSel('fProduct',prods,'상품');fillSel('fStock',stocks,'종목');}
-function fillSel(id,arr,type){var sel=document.getElementById(id);sel.innerHTML='<option value="">전체</option>';arr.sort().forEach(function(v){var o=document.createElement('option');o.value=v;o.textContent=(labelsMap[type]&&labelsMap[type][v])?labelsMap[type][v]:v;sel.appendChild(o);});}
+function fillSel(id,arr,type){var sel=document.getElementById(id);var prev=sel.value;sel.innerHTML='<option value="">전체</option>';arr.sort().forEach(function(v){var o=document.createElement('option');o.value=v;o.textContent=(labelsMap[type]&&labelsMap[type][v])?labelsMap[type][v]:v;sel.appendChild(o);});var stillExists=Array.prototype.some.call(sel.options,function(o){return o.value===prev;});if(stillExists)sel.value=prev;}
 function applyFilter(){var from=document.getElementById('dateFrom').value,to=document.getElementById('dateTo').value;var user=document.getElementById('fUser').value,inst=document.getElementById('fInstitution').value;var prod=document.getElementById('fProduct').value,stock=document.getElementById('fStock').value;var filtered=allData.filter(function(r){var d=fmtDate(r.날짜);if(from&&d<from)return false;if(to&&d>to)return false;if(user&&r.사용자ID!==user)return false;if(inst&&r.금융기관ID!==inst)return false;if(prod&&r.상품ID!==prod)return false;if(stock&&r.종목코드!==stock)return false;return true;});renderChart(filtered);}
 function resetFilters(){var now=new Date(),y1=new Date(now);y1.setFullYear(now.getFullYear()-1);document.getElementById('dateTo').value=now.toISOString().slice(0,10);document.getElementById('dateFrom').value=y1.toISOString().slice(0,10);['fUser','fInstitution','fProduct','fStock'].forEach(function(id){document.getElementById(id).value='';});applyFilter();}
 function renderChart(data){
@@ -123,7 +163,7 @@ if(myChart){myChart.destroy();myChart=null;}
 var ctx=document.getElementById('myChart').getContext('2d');
 myChart=new Chart(ctx,{type:'line',data:{labels:dates,datasets:[{data:vals,borderColor:'#1a1f2e',backgroundColor:'rgba(26,31,46,0.06)',borderWidth:2,pointRadius:dates.length<=30?4:2,pointBackgroundColor:'#1a1f2e',fill:true,tension:0.3}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:function(c){return' ₩'+num(c.raw);}}}},scales:{x:{grid:{display:false},ticks:{maxTicksLimit:6,autoSkip:true,autoSkipPadding:20,font:{size:11},callback:function(v,i){var d=dates[i];if(!d)return'';var p=d.split('-');return p[0].slice(2)+'/'+p[1]+'/'+p[2];}}},y:{grid:{color:'#f0f2f5'},ticks:{callback:function(v){var m=v/1000000;return'₩'+(Number.isInteger(m)?m:m.toFixed(1))+'백만';},font:{size:11}}}}}});
 }
-loadLabels(loadSnapshot);
+loadAll();
 </script>
 </body>
 </html>
