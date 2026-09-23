@@ -304,7 +304,7 @@ async function takeManualSnapshot() {
       try { const r = JSON.parse(text); success = r.result === 'success' || r.status === 'ok' || r.ok; }
       catch { success = res.ok; }
     } else { success = res.ok; }
-    if (success) showToast('✅ 수동 스냅샷 저장 완료 (' + dateStr + ')');
+    if (success) { localStorage.setItem('anju_last_write_ts', String(Date.now())); showToast('✅ 수동 스냅샷 저장 완료 (' + dateStr + ')'); }
     else showToast('❌ 저장 실패: ' + text.substring(0,100));
   } catch (err) {
     showToast('❌ 오류: ' + err.message);
