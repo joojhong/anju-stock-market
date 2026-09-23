@@ -9,8 +9,10 @@
 * { margin: 0; padding: 0; box-sizing: border-box; }
 body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #f0f2f5; color: #333; padding-bottom: 72px; }
 .header { background: #ffffff; color: #1a1f2e; padding: 16px 20px; display: flex; align-items: center; gap: 10px; position: sticky; top: 0; z-index: 100; border-bottom: 1px solid #eee; }
-.header h1 { font-size: 18px; font-weight: 700; flex: 1; }
+.header-title-wrap { display:flex; align-items:center; gap:8px; flex-wrap:wrap; flex: 1; min-width:0; }
+.header h1 { font-size: 18px; font-weight: 700; }
 .header a { color: #666; font-size: 13px; text-decoration: none; padding: 4px 8px; border-radius: 6px; background: rgba(255,255,255,0.1); }
+.sync-badge { display:none; background:#fff3cd; color:#856404; font-size:10px; font-weight:600; padding:3px 8px; border-radius:12px; white-space:nowrap; }
 nav { position: fixed; bottom: 0; left: 0; width: 100%; background: #ffffff; border-top: 1px solid #e0e0e0; display: grid; grid-template-columns: repeat(5, 1fr); z-index: 100; }
 nav a { display: flex; flex-direction: column; align-items: center; padding: 9px 0 7px; text-decoration: none; color: #999; font-size: 10px; gap: 2px; }
 nav a.active { color: #1a1f2e; font-weight: 700; }
@@ -67,7 +69,7 @@ nav a .ic { font-size: 21px; }
 <body>
 <div class="header">
   <span style="font-size:22px">✏️</span>
-  <h1>거래 입력</h1>
+  <div class="header-title-wrap"><h1>거래 입력</h1><span id="syncBadge" class="sync-badge"></span></div>
   <a href="index.html">← 홈</a>
 </div>
 <div class="section">
@@ -138,8 +140,6 @@ nav a .ic { font-size: 21px; }
     <div class="popup-msg">거래가 성공적으로 등록되었습니다.</div>
   </div>
 </div>
-
-<div id="syncBadge" style="display:none;position:fixed;top:8px;right:8px;background:#fff3cd;color:#856404;font-size:11px;padding:4px 10px;border-radius:20px;z-index:400;box-shadow:0 1px 4px rgba(0,0,0,.1);"></div>
 
 <script>
 const GAS = 'https://script.google.com/macros/s/AKfycbz3VGPAtks3tzPOwdL2qq_-7CmL-DZNzVckv05adQvK-Q6C_k9_E_oPXraZi55P2lvrPw/exec';
