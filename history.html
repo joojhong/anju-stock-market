@@ -127,12 +127,15 @@ window.anjuFetch(GAS+'?action=api&type=labels'),
 window.anjuFetch(GAS+'?action=api&type=snapshot')
 ]).then(function(results){
 var labels=results[0],snap=results[1];
+var needRedraw=!useCache||JSON.stringify(snap)!==JSON.stringify(cachedSnap.data);
 labelsMap=labels;
 cacheSet(CACHE_LABELS,labels);
 allData=snap;
 cacheSet(CACHE_SNAPSHOT,snap);
+if(needRedraw){
 populateFilters(allData);
 applyFilter();
+}
 hideSyncBadge();
 }).catch(function(e){
 if(cachedSnap&&cachedSnap.data){
