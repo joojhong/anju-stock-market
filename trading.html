@@ -328,6 +328,7 @@ async function submitTrade() {
     var data = await res.json();
 
     if (data.result === 'success' || data.success || data.id) {
+      localStorage.setItem('anju_last_write_ts', String(Date.now()));
       showPopup();
       resetForm();
       setTimeout(function() {
@@ -448,6 +449,7 @@ function deleteTrade(tradeId, date) {
       });
       const data = await res.json();
       if (data.result === 'success' || data.status === 'ok') {
+        localStorage.setItem('anju_last_write_ts', String(Date.now()));
         showToast('삭제되었습니다.');
         loadTradeList(true);
       } else {
