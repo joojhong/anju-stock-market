@@ -27,6 +27,8 @@ const KEY_PIN = 'anju_pin';
 const KEY_HIDE = 'anju_hide';
 const KEY_HIDE_TOKEN = 'anju_hide_tok';
 const KEY_NAV_FLAG = 'anju_nav';
+const KEY_TIMING = 'anju_timing_log';
+const TIMING_MAX = 50;
 let _memHideToken = null;
 
 async function sha256(text) {
@@ -66,6 +68,28 @@ return entries.length > 0 && entries[0].type === 'reload';
 } catch (e) { return false; }
 }
 
+function shortLabel(url) {
+try {
+if (url.indexOf('googleapis.com/oauth2') >= 0) return 'userinfo';
+if (url.indexOf('checkRole') >= 0) return 'checkRole';
+const qIdx = url.indexOf('?');
+if (qIdx < 0) return url.slice(0, 30);
+const qs = new URLSearchParams(url.slice(qIdx + 1));
+const parts = [qs.get('action'), qs.get('type'), qs.get('sheet')].filter(Boolean);
+return parts.length ? parts.join(':') : url.slice(qIdx, qIdx + 30);
+} catch (e) { return 'unknown'; }
+}
+
+function logTiming(entry) {
+try {
+const raw = localStorage.getItem(KEY_TIMING);
+const arr = raw ? JSON.parse(raw) : [];
+arr.push(entry);
+while (arr.length > TIMING_MAX) arr.shift();
+localStorage.setItem(KEY_TIMING, JSON.stringify(arr));
+} catch (e) { /* 진단 기록 실패는 무시 (앱 동작에 영향 없어야 함) */ }
+}
+
 function saveSession(token, expiresIn, role) {
 localStorage.setItem(KEY_TOKEN, token);
 localStorage.setItem(KEY_EXPIRY, String(Date.now() + expiresIn * 1000));
@@ -103,27 +127,48 @@ var timeoutMs = config.timeoutMs != null ? config.timeoutMs : 4000;
 var backoff = config.backoffMs || [300, 800];
 var parseJson = config.parseJson !== false;
 var lastErr = null;
+var callStart = Date.now();
+var attemptsLog = [];
 for (var attempt = 0; attempt <= maxRetries; attempt++) {
 var controller = new AbortController();
 var timer = setTimeout(function () { controller.abort(); }, timeoutMs);
+var attemptStart = Date.now();
 try {
 var res = await fetch(url, Object.assign({}, options, { signal: controller.signal }));
 clearTimeout(timer);
-if (!res.ok) { lastErr = new Error('HTTP ' + res.status); }
-else if (!parseJson) { return res; }
+if (!res.ok) {
+lastErr = new Error('HTTP ' + res.status);
+attemptsLog.push({ n: attempt, ms: Date.now() - attemptStart, r: 'http' });
+}
+else if (!parseJson) {
+attemptsLog.push({ n: attempt, ms: Date.now() - attemptStart, r: 'ok' });
+logTiming({ t: callStart, url: shortLabel(url), attempts: attemptsLog, ok: true, totalMs: Date.now() - callStart });
+return res;
+}
 else {
 var text = await res.text();
-try { return JSON.parse(text); }
-catch (e) { lastErr = new Error('JSON 파싱 실패 (서버가 JSON이 아닌 응답을 반환함)'); }
+try {
+var parsed = JSON.parse(text);
+attemptsLog.push({ n: attempt, ms: Date.now() - attemptStart, r: 'ok' });
+logTiming({ t: callStart, url: shortLabel(url), attempts: attemptsLog, ok: true, totalMs: Date.now() - callStart });
+return parsed;
+}
+catch (e) {
+lastErr = new Error('JSON 파싱 실패 (서버가 JSON이 아닌 응답을 반환함)');
+attemptsLog.push({ n: attempt, ms: Date.now() - attemptStart, r: 'json' });
+}
 }
 } catch (err) {
 clearTimeout(timer);
-lastErr = (err && err.name === 'AbortError') ? new Error('요청 시간 초과') : err;
+var isAbort = err && err.name === 'AbortError';
+lastErr = isAbort ? new Error('요청 시간 초과') : err;
+attemptsLog.push({ n: attempt, ms: Date.now() - attemptStart, r: isAbort ? 'timeout' : 'neterr' });
 }
 if (attempt < maxRetries) {
 await new Promise(function (r) { setTimeout(r, backoff[attempt] != null ? backoff[attempt] : backoff[backoff.length - 1]); });
 }
 }
+logTiming({ t: callStart, url: shortLabel(url), attempts: attemptsLog, ok: false, totalMs: Date.now() - callStart });
 throw lastErr;
 }
 
@@ -144,6 +189,40 @@ const gasR = await fetchWithRetry(
 const role = (await gasR.text()).trim();
 return ['editor','viewer','none'].includes(role) ? role : 'none';
 } catch { return 'none'; }
+}
+
+function maybeShowTimingDiagnostics() {
+try {
+if (new URLSearchParams(location.search).get('diag') !== '1') return;
+const raw = localStorage.getItem(KEY_TIMING);
+const arr = raw ? JSON.parse(raw) : [];
+window.__closeDiag = hideOverlay;
+if (!arr.length) {
+showOverlay('<div class="auth-logo">📋</div><div class="auth-title">진단 기록 없음</div><div class="auth-sub">아직 수집된 요청 기록이 없어요.</div><button class="pin-key wide" onclick="window.__closeDiag()">닫기</button>');
+return;
+}
+const asc = arr.slice().sort(function (a, b) { return a.t - b.t; });
+for (var i = 0; i < asc.length; i++) {
+asc[i]._cluster = false;
+for (var j = 0; j < asc.length; j++) {
+if (i === j) continue;
+if (Math.abs(asc[i].t - asc[j].t) <= 2000) { asc[i]._cluster = true; break; }
+}
+}
+const desc = asc.slice().reverse();
+const rows = desc.map(function (e) {
+const time = new Date(e.t).toLocaleString('ko-KR');
+const failCount = e.attempts.filter(function (a) { return a.r !== 'ok'; }).length;
+const mark = e.ok ? '✅' : '❌';
+return '<div style="font-size:11px;text-align:left;border-bottom:1px solid #eee;padding:5px 2px;">' +
+mark + ' ' + time + (e._cluster ? ' ⏱️동시' : '') + ' · ' + e.url + ' · ' + e.totalMs + 'ms · 시도 ' + e.attempts.length + '회' +
+(failCount ? ' (실패 ' + failCount + ')' : '') +
+'</div>';
+}).join('');
+showOverlay('<div class="auth-title">최근 요청 기록 (' + arr.length + '건)</div>' +
+'<div style="max-height:60vh;overflow-y:auto;margin-top:10px;-webkit-overflow-scrolling:touch;">' + rows + '</div>' +
+'<button class="pin-key wide" onclick="window.__closeDiag()">닫기</button>');
+} catch (e) { /* 진단 화면 오류는 앱 동작에 영향을 주면 안 됨 */ }
 }
 
 function injectStyles() {
@@ -345,6 +424,7 @@ new MutationObserver(applyViewerRestrictions).observe(document.body,{childList:t
 document.readyState==='loading'?document.addEventListener('DOMContentLoaded',apply):apply();
 }
 registerLifecycleListeners(role);
+maybeShowTimingDiagnostics();
 }
 
 function proceedToApp(role) {
