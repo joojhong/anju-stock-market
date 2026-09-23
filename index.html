@@ -47,6 +47,7 @@ nav a .ic { font-size:21px; }
 </style>
 </head>
 <body>
+<div id="syncBadge" style="display:none;position:fixed;top:8px;right:8px;background:#fff3cd;color:#856404;font-size:11px;padding:4px 10px;border-radius:20px;z-index:400;box-shadow:0 1px 4px rgba(0,0,0,.1);"></div>
 <div class="header"><h1>📊 안주주식마켓</h1><div class="header-indices" id="headerIndices"><span class="idx-item"><span class="idx-label">SPX</span><span class="idx-val" id="idxSPX">-</span></span><span class="idx-item"><span class="idx-label">NDX</span><span class="idx-val" id="idxNDX">-</span></span><span class="idx-item"><span class="idx-label">SPMO</span><span class="idx-val" id="idxSPMO">-</span></span></div></div>
 <div class="filter-wrap">
 <select id="userFilter" onchange="loadData()"><option value="전체">⏳ 불러오는 중...</option></select>
@@ -61,24 +62,59 @@ nav a .ic { font-size:21px; }
 </nav>
 <script>
 var GAS_URL='https://script.google.com/macros/s/AKfycbz3VGPAtks3tzPOwdL2qq_-7CmL-DZNzVckv05adQvK-Q6C_k9_E_oPXraZi55P2lvrPw/exec';
+var CACHE_FILTERS='anju_cache_filters_v1';
+var CACHE_DASHBOARD_PREFIX='anju_cache_dashboard_v1_';
+var KEY_LAST_WRITE='anju_last_write_ts';
 function num(n){return Math.round(n).toLocaleString('ko-KR');}
 function rate(r){return(r>=0?'+':'')+r.toFixed(2)+'%';}
 function cls(v){return v>=0?'up':'down';}
+function cacheGet(key){try{var raw=localStorage.getItem(key);return raw?JSON.parse(raw):null;}catch(e){return null;}}
+function cacheSet(key,data){try{localStorage.setItem(key,JSON.stringify({data:data,ts:Date.now()}));}catch(e){}}
+function isCacheStale(cached){if(!cached)return true;var lastWrite=parseInt(localStorage.getItem(KEY_LAST_WRITE)||'0',10);return cached.ts<lastWrite;}
+function showSyncBadge(text){var b=document.getElementById('syncBadge');if(!b)return;b.textContent=text;b.style.display='block';}
+function hideSyncBadge(){var b=document.getElementById('syncBadge');if(b)b.style.display='none';}
 function loadData(){
 var filter=document.getElementById('userFilter').value;
-document.getElementById('content').innerHTML='<div class="loading">⏳ 불러오는 중...</div>';
+var cacheKey=CACHE_DASHBOARD_PREFIX+encodeURIComponent(filter);
+var cached=cacheGet(cacheKey);
+var useCache=cached && cached.data && !isCacheStale(cached);
+if(useCache){render(cached.data);}
+else{document.getElementById('content').innerHTML='<div class="loading">⏳ 불러오는 중...</div>';}
+showSyncBadge('🔄 갱신 중');
 window.anjuFetch(GAS_URL+'?action=api&type=data&filter='+encodeURIComponent(filter))
-.then(render)
-.catch(function(e){document.getElementById('content').innerHTML='<div class="loading">⚠️ 서버 연결 실패<br><button onclick="loadData()" style="margin-top:10px;padding:8px 16px;border:none;border-radius:8px;background:#1a1f2e;color:white;font-size:13px;">다시 시도</button></div>';});
+.then(function(data){render(data);cacheSet(cacheKey,data);hideSyncBadge();})
+.catch(function(e){
+if(cached && cached.data){
+var mins=Math.max(1,Math.round((Date.now()-cached.ts)/60000));
+showSyncBadge('⚠️ 최신 확인 실패 ('+mins+'분 전 기준)');
+}else{
+document.getElementById('content').innerHTML='<div class="loading">⚠️ 서버 연결 실패<br><button onclick="loadData()" style="margin-top:10px;padding:8px 16px;border:none;border-radius:8px;background:#1a1f2e;color:white;font-size:13px;">다시 시도</button></div>';
+hideSyncBadge();
 }
-function initFilters(){
-window.anjuFetch(GAS_URL+'?action=api&type=filters')
-.then(function(options){
+});
+}
+function populateFilterSelect(options){
 var sel=document.getElementById('userFilter');
+var prev=sel.value;
 sel.innerHTML='';
 options.forEach(function(opt){var o=document.createElement('option');o.value=opt.value;o.text=opt.label;sel.appendChild(o);});
-loadData();
-}).catch(function(){document.getElementById('userFilter').innerHTML='<option value="전체">👥 전체</option>';loadData();});
+var stillExists=Array.prototype.some.call(sel.options,function(o){return o.value===prev;});
+if(stillExists) sel.value=prev;
+}
+function initFilters(){
+var cachedFilters=cacheGet(CACHE_FILTERS);
+var hadCache=cachedFilters && cachedFilters.data;
+if(hadCache){populateFilterSelect(cachedFilters.data);loadData();}
+window.anjuFetch(GAS_URL+'?action=api&type=filters')
+.then(function(options){
+cacheSet(CACHE_FILTERS,options);
+var sel=document.getElementById('userFilter');
+var prev=sel.value;
+populateFilterSelect(options);
+if(!hadCache || sel.value!==prev) loadData();
+}).catch(function(){
+if(!hadCache){document.getElementById('userFilter').innerHTML='<option value="전체">👥 전체</option>';loadData();}
+});
 }
 function render(data){
 var t=data.통계;
