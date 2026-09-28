@@ -196,6 +196,7 @@ function setTradeType(t) {
 
 function populateSelectFromObj(id, obj) {
   var sel = document.getElementById(id);
+  var prev = sel.value;
   sel.innerHTML = '<option value="">선택하세요</option>';
   Object.entries(obj).forEach(function(entry) {
     var k = entry[0], v = entry[1];
@@ -204,6 +205,8 @@ function populateSelectFromObj(id, obj) {
     opt.textContent = v;
     sel.appendChild(opt);
   });
+  var stillExists = Array.prototype.some.call(sel.options, function(o) { return o.value === prev; });
+  if (stillExists) sel.value = prev;
 }
 
 function calcAmount() {
