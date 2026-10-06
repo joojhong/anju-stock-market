@@ -1,0 +1,9 @@
+{
+  "name": "anju-stock-market-api",
+  "version": "1.0.0",
+  "description": "안주주식마켓 백엔드 (Google Cloud Run) - Apps Script Code.gs 대체",
+  "main": "index.js",
+  "scripts": { "start": "node index.js" },
+  "engines": { "node": ">=22" },
+  "dependencies": { "google-auth-library": "^9.15.0" }
+}
