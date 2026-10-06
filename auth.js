@@ -182,7 +182,7 @@ const userR = await fetchWithRetry(
 const { email } = await userR.json();
 if (!email) return 'none';
 const gasR = await fetchWithRetry(
-`https://script.google.com/macros/s/AKfycbz3VGPAtks3tzPOwdL2qq_-7CmL-DZNzVckv05adQvK-Q6C_k9_E_oPXraZi55P2lvrPw/exec?action=checkRole&email=${encodeURIComponent(email)}`,
+`https://anju-api-245414285873.asia-northeast3.run.app/?action=checkRole&email=${encodeURIComponent(email)}`,
 { cache: 'no-store' },
 { parseJson: false }
 );
