@@ -3,6 +3,15 @@
 가족(재홍님 + 배우자)의 주식·연금 계좌 잔고, 거래 내역, 평가액 추이를 관리하는 개인용 PWA입니다.
 이 문서는 새로운 AI 어시스턴트나 개발자가 이 저장소만 보고도 전체 구조를 이해할 수 있도록 작성되었습니다.
 
+## ⭐ 2026-10-07 업데이트: 백엔드를 Cloud Run으로 이전
+
+- 백엔드가 Google Apps Script에서 **Google Cloud Run**(프로젝트 `anju-stock-market`, 서울 리전, 서비스명 `anju-api`)으로 이전되었습니다. 소스는 `cloudrun/`(`index.js`, `package.json`, `Dockerfile`)입니다. 이전 사유: Apps Script 웹앱의 간헐적 응답 실패(예: "최신 확인 실패" 표시).
+- 프론트엔드 6개 파일(`index.html`, `trading.html`, `history.html`, `setting.html`, `snapshot.html`, `auth.js`)의 API 주소가 Cloud Run 주소로 바뀌었습니다. 변수 이름 `GAS_URL`은 그대로이고 값만 바뀌었습니다. 요청 형식(`?action=api&type=...`, `readSheet`, `checkRole`, POST 쓰기)은 Apps Script와 동일합니다. (`snapshot.html`의 `DEFAULT_SNAP_SOURCE`에 있는 별도 Apps Script 주소는 그대로 둠)
+- 배포: GitHub `main`에 push하면 Cloud Build 트리거가 자동으로 빌드·배포합니다. 화면 파일만 고쳐도 서버가 다시 배포됩니다(`cloudrun/` 경로 필터는 아직 미적용).
+- **Apps Script 트리거 정리 (2026-10-07)**: `스냅샷저장`(매월)과 `보유종목업데이트`(매일 04시) 트리거를 **삭제**했습니다. 같은 일을 Cloud Scheduler가 대신합니다(아래 "트리거 목록" 참고). Apps Script에는 `백업시각체크`(드라이브 백업) 트리거 1개만 남아 있습니다.
+- 예전 Apps Script 웹앱 배포와 `apps-script/Code.gs`는 비상용으로 남겨두었습니다(앱은 더 이상 호출하지 않음). **아래 "전체 아키텍처", "배포 구조", "캐싱 구조", "배포/롤백 방법"의 Apps Script 설명은 이전 이력이며, 현재 운영 기준은 이 섹션입니다.**
+- 확인 상태: Cloud Scheduler 두 작업을 2026-10-06에 강제 실행했고 모두 "성공"으로 표시됨(실행 상태 기준). 다만 스냅샷이 **실제 저장일에 새 행을 만드는 동작은 아직 확인 전**입니다. 삭제된 `스냅샷저장` 트리거의 마지막 실행은 2026-10-01이므로, 다음 설정일(기본 매월 1일)에 스냅샷 시트에 새 행이 생겼는지 확인해야 합니다.
+
 ## 한눈에 보는 구조
 
 ```
@@ -15,8 +24,9 @@ anju-stock-market/
 ├── auth.js              ← 로그인/PIN 화면 (아래 "인증 구조" 참고)
 ├── manifest.json        ← PWA 매니페스트
 ├── icon-192.png / icon-512.png  ← PWA 아이콘 (manifest.json에서 참조, 확인 완료)
+├── cloudrun/            ← 현재 백엔드(Cloud Run) 소스: index.js, package.json, Dockerfile
 ├── apps-script/
-│   ├── Code.gs          ← Google Apps Script 백엔드 소스 미러 (라이브 편집기가 원본, 여기는 사본)
+│   ├── Code.gs          ← Google Apps Script 백엔드 소스 미러 (라이브 편집기가 원본, 여기는 사본) — 2026-10-07부터 비상용 옛 백엔드
 │   └── appsscript.json  ← Apps Script 매니페스트 미러
 └── README.md            ← 이 문서
 ```
@@ -40,7 +50,7 @@ fetch(GAS_URL + '?action=...')
 [Google Sheets]  ← 유일한 데이터베이스 (계좌/사용자/금융기관/상품/종목/거래내역/스냅샷/설정/지수)
 ```
 
-백엔드가 Apps Script 하나뿐이고, Cloud Run이나 Firestore 같은 별도 인프라 전환은 없습니다. 모든 업무 데이터는 Google Sheets 한 곳에 있습니다. Code.gs는 이 시트에 **컨테이너 바인딩**되어 있습니다(코드 내 `SpreadsheetApp.getActiveSpreadsheet()` 18곳에서 확인).
+(2026-10-07 이전 기준 설명: 당시 백엔드는 Apps Script 하나뿐이었고, 현재는 Cloud Run으로 이전되었습니다. 데이터베이스는 여전히 Google Sheets 한 곳입니다.) 모든 업무 데이터는 Google Sheets 한 곳에 있습니다. Code.gs는 이 시트에 **컨테이너 바인딩**되어 있습니다(코드 내 `SpreadsheetApp.getActiveSpreadsheet()` 18곳에서 확인).
 
 ## 배포 구조
 
@@ -58,7 +68,9 @@ fetch(GAS_URL + '?action=...')
 
 ## 캐싱 구조 (2026-09-17~18 추가)
 
-CacheService + PropertiesService 버전 카운터 기반 캐싱이 적용되어 있습니다.
+CacheService + PropertiesService 버전 카운터 기반 캐싱이 적용되어 있었습니다(Apps Script 시절).
+
+> 2026-10-07: Cloud Run은 서버 메모리 캐시를 사용합니다. TTL은 filters/labels 1800초, dashboard 60초, snapshot 300초, readSheet 계좌 1800초 / 거래내역 60초입니다. 쓰기 순서 보장과 캐시 일관성을 위해 인스턴스 최대 1개로 고정되어 있습니다. 아래 표는 Apps Script 시절 기준입니다.
 
 | 대상 | 방식 | TTL | 무효화 조건 |
 |---|---|---|---|
@@ -73,9 +85,18 @@ CacheService + PropertiesService 버전 카운터 기반 캐싱이 적용되어 
 
 | 함수 | 주기 | 실행 배포 | 비고 |
 |---|---|---|---|
-| `보유종목업데이트` | 매일 04시 | Head | doPost 성공 직후 즉시 반영이 기본, 이 트리거는 시트 직접 수정 등에 대비한 안전망 |
-| `스냅샷저장` | **매월**, '설정' 시트의 `스냅샷_자동저장일`(콤마로 여러 날짜 지정 가능, 기본 1일)·`스냅샷_저장시간`(기본 7시) | **버전 32(고정)** | ⚠️ Head가 아님 — 아래 "알려진 이슈" 참고. 전체 투자 규모를 주기적으로 기록하는 용도이며 매일 실행이 아님(2026-09-18 확인) |
+| ~~`보유종목업데이트`~~ **(2026-10-07 삭제 — Cloud Scheduler `anju-holdings-daily`가 대체)** | 매일 04시 | Head | doPost 성공 직후 즉시 반영이 기본, 이 트리거는 시트 직접 수정 등에 대비한 안전망 |
+| ~~`스냅샷저장`~~ **(2026-10-07 삭제 — Cloud Scheduler `anju-snapshot-check`가 대체)** | **매월**, '설정' 시트의 `스냅샷_자동저장일`(콤마로 여러 날짜 지정 가능, 기본 1일)·`스냅샷_저장시간`(기본 7시) | **버전 32(고정)** | ⚠️ Head가 아님 — 아래 "알려진 이슈" 참고. 전체 투자 규모를 주기적으로 기록하는 용도이며 매일 실행이 아님(2026-09-18 확인) |
 | `백업시각체크` | 매시간 체크, '설정' 시트 `백업_저장시간`(기본 23시)과 일치할 때만 실제 백업 실행 | Head | 아래 "백업 시스템" 참고, 2026-09-18 추가. 함수명·설정 키 모두 라이브 코드에서 재확인함 |
+
+### Cloud Scheduler (2026-10-07 추가, 현재 운영)
+
+프로젝트 `anju-stock-market`, 리전 asia-northeast3, 시간대 Asia/Seoul. 두 작업 모두 Cloud Run `anju-api`의 `/cron/...` 주소를 GET으로 호출합니다. 주소 끝의 `secret` 값은 Cloud Run 환경변수 `CRON_SECRET`과 같습니다(저장소가 Public이라 값은 여기 적지 않음 — Cloud Scheduler 작업 설정 또는 Cloud Run 환경변수에서 확인).
+
+| 작업 | 주기 | 호출 | 비고 |
+|---|---|---|---|
+| `anju-snapshot-check` | 매시간 정각 | `/cron/snapshot` | '설정' 시트의 `스냅샷_자동저장일`·`스냅샷_저장시간`과 일치할 때만 저장, 오늘 이미 저장됐으면 건너뜀 |
+| `anju-holdings-daily` | 매일 04:00 | `/cron/holdings` | 보유종목 재계산(옛 `보유종목업데이트` 대체) |
 
 ## 인증 구조
 
@@ -98,7 +119,7 @@ Code.gs가 시트에 컨테이너 바인딩되어 있어 스크립트 자체를 
 ## 알려진 이슈 / 백로그
 
 1. **스냅샷 캐시 무효화 갭**: 시트를 수동 편집하면 스냅샷 캐시가 최대 300초 stale할 수 있음. 후보안 3가지 검토 중(TTL 60초 단축 / onEdit 트리거 / 수동 `_bumpVer` 호출), 미결정.
-2. **스냅샷저장 트리거가 특정 버전(32)에 고정됨**: Head가 아니라서 향후 Code.gs를 고쳐도 이 트리거엔 반영 안 됨. 실제 로직 변경 시 트리거의 "실행할 배포"를 Head로 재설정 필요.
+2. **스냅샷저장 트리거가 특정 버전(32)에 고정됨**: Head가 아니라서 향후 Code.gs를 고쳐도 이 트리거엔 반영 안 됨. 실제 로직 변경 시 트리거의 "실행할 배포"를 Head로 재설정 필요. → **2026-10-07 해당 없음**: 이 트리거는 삭제되어 Cloud Scheduler로 대체됨.
 3. **doGet/getDashboardData 예외 처리 미비**: 에러 시 HTML 에러 페이지 대신 JSON 반환하도록 개선 필요. (2026-09-18 실사용 중 관련 정황 있음 — 아래 참고)
 4. **배포 C의 AppSheet 의존성/액세스 설정 미조사**.
 5. **orphan 배포(B) 정리 미완료**.
@@ -106,13 +127,17 @@ Code.gs가 시트에 컨테이너 바인딩되어 있어 스크립트 자체를 
 7. **index.html의 `type=indices`(시장 지수)**: 캐싱 미적용, 우선순위 낮음.
 8. **2026-09-18 iOS PWA 간헐적 에러**: 통계 화면에 `오류: The string did not match the expected pattern.` 표시된 사례 2건(11:19, 11:21). 해당 시간대 Apps Script 실행 로그엔 실패 기록 없음(서버 예외 아님) / Code.gs엔 `Utilities.parseDate`, `.match()` 사용 없음(그 가설은 기각) / 클라이언트 코드(`index.html`)는 `fetch(...).then(r=>r.json())` 실패 시 `e.message`를 그대로 화면에 표시하는 구조 / 같은 배포 URL을 직접 재요청했을 때 구글 게이트웨이 단계에서 JSON 대신 HTML 에러 페이지가 오는 현상을 실제로 재현함. 앱 완전 종료 후 재실행하면 정상화됨. 원인 후보: ① iOS PWA 캐시/세션 문제(가장 유력) ② 구글 게이트웨이 순간 차단 ③ 네트워크 순간 끊김. 재발 시 정확한 시각·PWA 완전종료로 해결되는지·Safari에서도 재현되는지를 기록해 며칠 관찰 후 재시도 로직 도입 여부 결정 예정 — 미결정.
 9. **API 인증 게이트 없음**: 저장소가 Public이라 `GAS_URL`이 공개되어 있어, PIN 오버레이와 무관하게 API 자체에는 별도 인증이 없음. Sheet/Drive 폴더 공유가 "제한됨"이라 직접 접근은 막혀 있지만, API를 통한 조회/쓰기는 이론상 누구나 가능. 현재는 "가족만 아는 URL"이라는 전제로 감수하기로 함(2026-09-18) — 미결정 상태로 남겨둠, 필요시 간단한 토큰 검증 등 도입 검토 가능.
+10. **백업 대상에 `cloudrun/`이 없음 (2026-10-07)**: `백업시각체크`가 GitHub에서 가져오는 백엔드 파일 목록이 `apps-script/Code.gs`, `apps-script/appsscript.json`으로 고정되어 있어 Cloud Run 소스(`cloudrun/index.js` 등)는 드라이브 백업에 포함되지 않음(소스는 GitHub 커밋 이력으로 보존됨). 필요하면 Code.gs의 `백업_백엔드_파일목록`에 추가.
+11. **`백업시각체크`의 Cloud Run 이전은 보류 (2026-10-07)**: Cloud Run의 서비스 계정이 만든 드라이브 파일은 서비스 계정 용량으로 잡혀 저장 공간 오류가 날 가능성이 있어(미검증), 우선 Apps Script에 그대로 둠. 이전하려면 먼저 소규모 시험 필요.
+12. **Cloud Run API도 공개 접근 (2026-10-07)**: Apps Script 때와 같은 수준의 공개 상태라 위 9번 항목이 그대로 적용됨.
 
 ## 배포/롤백 방법
 
 | 고친 파일 | 배포 방법 |
 |---|---|
 | `*.html`, `auth.js`, `manifest.json` | GitHub 커밋만 하면 끝 (GitHub Pages 자동 재배포) |
-| `Code.gs` | Apps Script 편집기에서 재홍님이 직접 수정 → 배포 관리 → 배포 A 선택 → 새 버전 → 배포. 이후 `apps-script/Code.gs` 미러도 같이 커밋 |
+| `cloudrun/*` (현재 백엔드) | GitHub `main`에 커밋하면 Cloud Build가 자동으로 빌드·배포 (결과는 Google Cloud 콘솔 Cloud Build 기록에서 확인) |
+| `Code.gs` (옛 백엔드, 비상용) | Apps Script 편집기에서 재홍님이 직접 수정 → 배포 관리 → 배포 A 선택 → 새 버전 → 배포. 이후 `apps-script/Code.gs` 미러도 같이 커밋 |
 | `appsscript.json`(권한 등) | Apps Script 편집기에서 수정 → 저장(권한 범위가 늘면 재승인 팝업이 뜸) → `apps-script/appsscript.json` 미러도 같이 커밋 |
 
 ## 보안 정책
@@ -121,3 +146,4 @@ API Key, 비밀번호, 실제 Secret 값은 절대 GitHub에 저장하지 않습
 
 ---
 *이 문서는 재홍님과 AI(Claude)가 함께 작업한 인계서(2026-09-18) 및 백업 설계 세션(2026-09-18) 내용을 기반으로 작성되었습니다. 구조가 바뀌면 이 문서도 같이 갱신해주세요.*
+*2026-10-07 갱신: Cloud Run 이전, Cloud Scheduler 도입, Apps Script 트리거 2개 삭제 내용을 추가했습니다.*
